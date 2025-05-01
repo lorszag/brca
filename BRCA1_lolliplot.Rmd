@@ -1,0 +1,135 @@
+---
+title: "BRCA1_lollipop"
+output: html_document
+date: "2025-02-06"
+---
+
+```{r libraries, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(trackViewer)
+```
+
+```{r create annotation df}
+annotation = data.frame(Gene = c('RING', 'NLS', 'NLS', 'Coiled', 'BRCT-n', 'BRCT-c'),
+                        START = c(24, 503, 607, 1364, 1646, 1736),
+                        END = c(65, 504, 608, 1437, 1736, 1863))
+```
+
+# UKBB
+```{r}
+ukbb_cases = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ukbb_brca1_cases.csv')
+```
+
+```{r}
+lolliplot_data = ukbb_cases%>%
+  group_by(HGVSp, HGVSc, protein_position_vep, POS, REF, ALT, autogvp_call_reason)%>%
+  summarize(count = n(), .groups = "keep")
+```
+
+# GHS
+```{r}
+ghs_cases = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca1_cases.csv')
+```
+
+```{r}
+lolliplot_data2 = ghs_cases%>%
+  group_by(HGVSp, HGVSc, protein_position_vep, POS, REF, ALT, autogvp_call_reason)%>%
+  summarize(count = n(), .groups = "keep")
+```
+
+```{r}
+lolliplot_data <- lolliplot_data %>%
+  mutate(source = "UKBB")
+lolliplot_data2 <- lolliplot_data2 %>%
+  mutate(source = "GHS")
+lolliplot_data = rbind(lolliplot_data, lolliplot_data2)
+```
+
+```{r}
+lolliplot_data$protein_position_vep = gsub("-.*", "", lolliplot_data$protein_position_vep)
+```
+
+```{r}
+lolliplot_data$protein_position_vep = as.integer(lolliplot_data$protein_position_vep)
+lolliplot_data = lolliplot_data%>% 
+  mutate(protein_position_vep = case_when(
+    POS == 43091462 ~ 1355,
+    POS == 43124027 ~ 23,
+    POS == 43057062 ~ 1756,
+    POS <= 43106455 & POS >= 43104967 ~ 71,
+    POS == 43104867 | POS == 43104262 ~ 101,
+    POS == 43090943 ~ 1395, 
+    POS == 43082398 ~ 1453,
+    POS == 43074329 ~ 1559,
+    POS == 43070922 ~ 1662,
+    POS == 43067605 ~1692,
+    POS >= 43063374 & POS <= 43063873 ~ 1716,
+    POS == 43063330 | POS == 43057147 ~ 1731,
+    POS == 43057051 ~ 1759,
+    POS == 43049120 | POS == 43047704 ~ 1802,
+    POS == 43099774 ~ 182,
+    POS == 43095845 ~ 224,
+    POS == 43067648 ~ 1677,
+    POS == 43070966 ~ 1650,
+    POS == 43057098 ~ 1744,
+    POS == 43106534 ~ 45,
+    POS == 43104967 | POS == 43104968 ~ 71,
+    POS >= 43104262 & POS <= 43104867 ~ 101,
+    POS == 43076487 | POS == 43074522 ~ 1495,
+    POS == 43070924 ~ 1662,
+    POS == 43063873 | POS == 43063374 ~ 1716, 
+    POS == 43057051 ~ 1759,
+    POS == 43047728 ~ 1802,
+    POS == 43095845 ~ 224,
+    TRUE ~ protein_position_vep))
+```
+
+```{r}
+SNP = as.numeric(lolliplot_data$protein_position_vep)
+SCORE=lolliplot_data$count  
+lolliplot_data = mutate(lolliplot_data, color = case_when(autogvp_call_reason == "ClinVar" ~ "deeppink3" ,
+                                                          autogvp_call_reason == "InterVar" ~ "dodgerblue2" ,
+                                                          TRUE ~ "grey"))
+COLOR=lolliplot_data$color 
+SNPsideID=ifelse(lolliplot_data$source == "UKBB", "top", "bottom")
+```
+
+```{r}
+sample.gr=GRanges("chr", IRanges(SNP, width = 1, names = SNP))
+sample.gr$score=SCORE
+# sample.gr$color=COLOR
+sample.gr$SNPsideID=SNPsideID
+```
+
+```{r}
+annotation$width = annotation$END-annotation$START
+START = annotation$START
+GENE_SIZE = annotation$width
+GENE_NAMES = annotation$Gene
+```
+
+```{r}
+feature=GRanges("chr", IRanges(START, width = GENE_SIZE, names = GENE_NAMES))
+feature$fill = c("cornflowerblue", "purple3", "purple3", "turquoise3", "pink2", "pink2")
+```
+
+```{r}
+legend=list(labels= c("Clinvar", "Intervar"), 
+            fill=c("deeppink3", "dodgerblue2"))
+```
+
+            
+```{r}
+jpeg("brca1plot.jpeg", width=1200, height = 600)
+lolliplot(sample.gr, feature, 
+          ylab = "counts", 
+          type = "circle",
+          # legend = legend, 
+          yaxis = TRUE, 
+          xaxis = TRUE)
+dev.off()
+```
+
+

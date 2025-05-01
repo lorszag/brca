@@ -1,0 +1,115 @@
+---
+title: "Type of Variant"
+output: html_document
+date: "2025-04-08"
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+```{r read in data}
+ukbb_brca1 = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ukbb_brca1_cases.csv')
+ukbb_brca2 = read_excel('/Users/orszagl2/Downloads/ukbb_brca2_cases.xlsx')
+```
+
+```{r find joint}
+ukbb_bi = inner_join(ukbb_brca1, ukbb_brca2, by = "eid" )
+```
+
+```{r read in data ghs}
+ghs_brca1 = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca1_cases.csv')
+ghs_brca2 = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca2_cases_avengers.csv')
+```
+
+```{r find joint ghs}
+ghs_bi = inner_join(ghs_brca1, ghs_brca2, by = "PTID")%>%select(PTID)
+```
+
+```{r dual ukbb mutations}
+var_ukbb_1 = ukbb_brca1 %>%
+  distinct(eid, ID, .keep_all = TRUE)%>%
+  group_by(eid) %>%
+  filter(n() > 1)%>%
+  arrange(eid)
+var_ukbb_2 = ukbb_brca2 %>%
+  distinct(eid, ID, .keep_all = TRUE)%>%
+  group_by(eid) %>%
+  filter(n() > 1)%>%
+  arrange(eid)
+```
+
+```{r}
+write.csv(var_ukbb_1, "dual_vars_ukbb_brca1.csv")
+write.csv(var_ukbb_2, "dual_vars_ukbb_brca2.csv")
+```
+
+```{r dual ghs mutations}
+var_ghs_1 = ghs_brca1 %>%
+  distinct(PTID, ID, .keep_all = TRUE)%>%
+  group_by(PTID) %>%
+  filter(n() > 1)%>%
+  arrange(PTID)
+var_ghs_2 = ghs_brca2 %>%
+  distinct(PTID, ID, .keep_all = TRUE)%>%
+  group_by(PTID) %>%
+  filter(n() > 1)%>%
+  arrange(PTID)
+```
+
+```{r}
+write.csv(var_ghs_1, "dual_vars_ghs_brca1.csv")
+write.csv(var_ghs_2, "dual_vars_ghs_brca2.csv")
+```
+
+```{r ukbb variant type}
+ukbb_brca1%>%
+  distinct(eid, ID, .keep_all = TRUE)%>%
+  group_by(variant_classification_vep)%>%
+  summarize(n = n())%>%
+  arrange(desc(n))
+ukbb_brca2%>%
+  distinct(eid, ID, .keep_all = TRUE)%>%
+  group_by(variant_classification_vep)%>%
+  summarize(n = n())%>%
+  arrange(desc(n))
+```
+```{r ghs variant type}
+ghs_brca1%>%
+  distinct(PTID, ID, .keep_all = TRUE)%>%
+  group_by(variant_classification_vep)%>%
+  summarize(n = n())%>%
+  arrange(desc(n))
+ghs_brca2%>%
+  distinct(PTID, ID, .keep_all = TRUE)%>%
+  group_by(variant_classification_vep)%>%
+  summarize(n = n())%>%
+  arrange(desc(n))
+```
+missense = missense & missense & splice
+LOF = frameshift stop gained splice acceptor splice donor stop gained & stop gained
+
+```{r exclude per jung}
+ukbb_brca1 = ukbb_brca1%>%filter(eid != 2684477 & eid != 4601732 & eid != 4608073)
+write.csv(ukbb_brca1, "case_data/ukbb_brca1_cases.csv")
+ukbb_brca2 = ukbb_brca2%>%filter(eid != 1155060 & eid != 1272230 & eid != 1382417 & eid != 1545097 & eid!= 1869062 & eid!= 2021560
+                                 & eid!= 2493952 & eid!= 2526771 & eid!= 2574300 & eid != 3542256 & eid !=5111817 & eid != 5519488 & eid != 5716632)
+write.csv(ukbb_brca2, "case_data/ukbb_brca2_cases.csv")
+```
+
+```{r person counts per severity type}
+table(as.factor(ukbb_brca1$autogvp_call))
+table(as.factor(ukbb_brca2$autogvp_call))
+```
+```{r number of types of mutation}
+mut_brca1 = ukbb_brca1%>% distinct(HGVSc, .keep_all = TRUE)
+table(as.factor(mut_brca1$autogvp_call))
+mut_brca2 = ukbb_brca2%>% distinct(HGVSc, .keep_all = TRUE)
+table(as.factor(mut_brca2$autogvp_call))
+```
+
+```{r large number specific variant}
+ukbb_brca1%>% group_by(HGVSc)%>%summarize(n = n())%>%filter(n>30)%>%distinct(HGVSc, .keep_all = TRUE)
+ukbb_brca2%>% group_by(HGVSc)%>%summarize(n = n())%>%filter(n>30)%>%distinct(HGVSc, .keep_all = TRUE)
+```

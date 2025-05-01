@@ -1,0 +1,192 @@
+---
+title: "BRCA2_lolliplot"
+output: html_document
+date: "2025-02-06"
+---
+```{r libraries, warning=FALSE message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+library(trackViewer)
+library(data.table)
+```
+
+```{r create annotation df}
+annotation = data.frame(Gene = c('PALB Interaction', 'TAD',
+                                 'BRC1', 'BRC2', 'BRC3', 'BRC4','BRC5', 'BRC6', 'BRC7', 'BRC8', 
+                                 "MBD", "Helical Domain", 
+                                 "OB1", "OB2", "OB3", "RAD51 Binding"),
+                        START = c(10, 18, 
+                                  1002, 1212, 1421, 1517, 1664, 1837, 1971, 2051,
+                                  2117, 2402, 
+                                  2670, 2809, 3056, 3270),
+                        END = c(40, 105, 
+                                1036, 1246, 1455, 1551, 1698, 1871, 2005, 2085,
+                                2339, 2669, 2803, 3048, 3102, 3305))
+```
+
+```{r}
+annotation$width = annotation$END - annotation$START
+```
+
+```{r}
+ukbb_raw = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ukbb_brca2_cases.csv')
+ukbb_av = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ukbb_brca2_cases.csv')
+ghs_raw = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca2_cases.csv')
+ghs_av = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca2_cases_av.csv')
+```
+
+```{r}
+lolliplot_data = ukbb_av%>%
+  group_by(HGVSp, HGVSc, protein_position_vep, POS, REF, ALT, autogvp_call_reason)%>%
+  summarize(count = n(), .groups = "keep")%>%
+  mutate(source = "UKBB")
+lolliplot_data2 = ghs_av%>%
+  group_by(HGVSp, HGVSc, protein_position_vep, POS, REF, ALT, autogvp_call_reason)%>%
+  summarize(count = n(), .groups = "keep")%>%
+  mutate(source = "GHS")
+lolliplot_data$protein_position_vep = gsub("-.*", "", lolliplot_data$protein_position_vep)
+lolliplot_data2$protein_position_vep = gsub("-.*", "", lolliplot_data2$protein_position_vep)
+```
+
+```{r}
+lolliplot_data = rbind(lolliplot_data, lolliplot_data2)
+```
+
+```{r}
+lolliplot_data$protein_position_vep = as.integer(lolliplot_data$protein_position_vep)
+lolliplot_data = lolliplot_data%>% 
+  mutate(protein_position_vep = case_when(
+    POS == 32326153~ 159,
+    POS == 32326283 | POS ==  32326497 ~ 173,
+    POS >= 32326614 & POS <= 32329440 ~ 212,
+    POS == 32316529 ~ 23,
+    POS == 32329493 ~228,
+    POS == 32344557 ~ 2281,
+    POS == 32354860 ~ 2336,
+    POS == 32357930 ~ 2603,
+    POS == 32331031 | POS == 32332270 ~ 266,
+    POS == 32362697 | POS == 32363178 ~ 2660,
+    POS >= 32363534 & POS <= 32370399 ~ 2780,
+    POS >= 32370558 & POS <=32370560 ~ 2830,
+    POS == 32376642 ~ 2878,
+    POS == 32379316 | POS == 32379315 ~ 2919,
+    POS == 32379749 ~ 2985,
+    POS == 32379914 | POS == 32380005 ~ 3041,
+    POS == 32394687 ~3086,
+    POS == 32394935| POS == 32396896 ~ 3168,
+    POS == 32337160 ~ 398,
+    POS == 32316477 ~ 8,
+    POS == 32339509 ~ 1719,
+    POS == 32340151 ~ 1933,
+    POS == 32340504 ~ 2051,
+    POS == 32340756 ~ 2135,
+    POS ==32337324 ~ 991,
+    POS == 32330986 ~252,
+    POS == 32398209 ~ 3233,
+    POS == 32338633 ~ 1429,
+    POS == 32340816 ~ 2157,
+    POS == 32338087 ~ 1245,
+    POS == 32338411 ~1353,
+    POS == 32338827 ~ 1493,
+    POS == 32339085 ~ 1577,
+    POS == 32339287 ~ 1646,
+    POS == 32357913 ~ 2599,
+    POS == 32339928 ~ 1859,
+    POS == 32339972 ~ 1874,
+    POS == 32346830 ~ 2315,
+    POS == 32338749 ~ 1466,
+    POS == 32340072 ~ 1908,
+    POS == 32354920 ~2357,
+    POS == 32338570 ~ 1406,
+    POS == 32338764 ~ 1472,
+    POS == 32339385 ~ 1678,
+    POS == 32340836 ~ 2162,
+    POS == 32336731 ~ 794,
+    POS == 32339640 ~ 1674,
+    POS == 32340951 ~ 2201,
+    POS == 32338630 ~ 1426,
+    POS == 32380135 ~ 3085,
+    POS == 32332795 ~ 441,
+    POS == 32336605 ~ 751,
+    POS == 32339498 ~ 1716,
+    POS == 32339568 ~ 1739,
+    POS == 32340998 ~ 2215,
+    POS == 32338200 ~ 1283,
+    POS == 32338393 ~ 1347,
+    POS == 32338808 ~ 1486,
+    POS == 32338946 ~ 1532,
+    POS == 32339394 ~ 1681,
+    POS == 32339763 ~ 1804,
+    POS == 32329467 ~ 220,
+    POS == 32316420 ~ 1,
+    POS == 32326099 ~ 142,
+    POS >= 32326151 & POS <=32326240 ~ 159,
+    POS == 32326497 ~ 173,
+    POS == 32316529 ~ 23,
+    POS == 32329493 ~ 228,
+    POS == 32354860 ~ 2336, 
+    POS == 32356426 ~ 2479,
+    POS == 32331031 | POS == 32332270 ~ 266,
+    POS == 32362695 | POS == 32363178 ~ 2660,
+    POS == 32363534 ~ 2780,
+    POS == 32370558 | POS == 32370955 ~ 2830,
+    POS == 32376668 ~ 2878,
+    POS >= 32376793 & POS <=32379316 ~ 2919,
+    POS == 32379516 | POS == 32379745 ~ 2985,
+    POS == 32329441 ~ 212,
+    POS == 32379748 ~ 2985,
+    TRUE ~ protein_position_vep
+  ))
+```
+
+
+```{r}
+SNP = as.numeric(lolliplot_data$protein_position_vep)
+SCORE=lolliplot_data$count  
+lolliplot_data = mutate(lolliplot_data, color = case_when(autogvp_call_reason == "ClinVar" ~ "deeppink3" ,
+                                                          autogvp_call_reason == "InterVar" ~ "dodgerblue2" ,
+                                                          TRUE ~ "grey"))
+COLOR=lolliplot_data$color 
+SNPsideID=ifelse(lolliplot_data$source == "UKBB", "top", "bottom")
+```
+
+```{r}
+sample.gr=GRanges("chr", IRanges(SNP, width = 1, names = SNP))
+sample.gr$score=SCORE
+# sample.gr$color=COLOR
+```
+
+```{r}
+annotation$width = annotation$END-annotation$START
+START = annotation$START
+GENE_SIZE = annotation$width
+GENE_NAMES = annotation$Gene
+sample.gr$SNPsideID=SNPsideID
+```
+
+```{r}
+feature=GRanges("chr", IRanges(START, width = GENE_SIZE, names = GENE_NAMES))
+feature$fill = c("cornflowerblue", "purple3",
+                 "pink2", "pink2", "pink2", "pink2", "pink2", "pink2", "pink2", "pink2",
+                 "turquoise3",  "mediumpurple1", 
+                 "maroon", "maroon", "maroon", "royalblue4")
+```
+
+```{r}
+# legend=list(labels= c("Clinvar", "Intervar"), 
+            # fill=c("deeppink3", "dodgerblue2"))
+```
+     
+```{r}
+jpeg("brca2plot.jpeg", width=1200, height = 600)
+lolliplot(sample.gr, feature, 
+          ylab = "counts", 
+          type = "circle",
+          # legend = legend, 
+          yaxis = TRUE, 
+          xaxis = TRUE)
+dev.off()
+```
+
+

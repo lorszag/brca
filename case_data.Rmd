@@ -1,0 +1,38 @@
+---
+title: "case_data"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r case ids}
+ghs_brca1 = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca1_cases.csv')
+ghs_brca2_avengers = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca2_cases_av.csv')
+ghs_brca2 = read.csv('/Users/orszagl2/Documents/Genetics/case_data/ghs_brca2_cases_raw.csv')
+```
+
+```{r raw data}
+ghs_plp_brca1 = fread('/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_PLP.txt')
+ghs_possplp_brca1 = fread('/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt')
+ghs_all_brca1 = rbind(ghs_plp_brca1, ghs_possplp_brca1)
+ghs_plp_brca2 = fread('/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_PLP.txt')
+ghs_possplp_brca2 = fread('/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt')
+ghs_all_brca2 = rbind(ghs_plp_brca2, ghs_possplp_brca2)
+```
+
+```{r}
+ghs_cases_brca1 = left_join(select(ghs_brca1, PTID), ghs_all_brca1, by = "PTID")
+ghs_cases_brca2 = left_join(select(ghs_brca2, PTID), ghs_all_brca1, by = "PTID")
+ghs_cases_brca2_av = left_join(select(ghs_brca2_avengers, PTID), ghs_all_brca1, by = "PTID")
+```
+
+```{r}
+write.csv(ghs_cases_brca1, "case_data/ghs_brca1_cases_full.csv")
+write.csv(ghs_cases_brca2, "case_data/ghs_brca2_cases_full.csv")
+write.csv(ghs_cases_brca2_av, "case_data/ghs_brca2_cases_avengers_full.csv")
+```
+
+```{r}
+ukbb_brca1 = 
+```
+
+

@@ -1,0 +1,29 @@
+---
+title: "Specific Variant Analysis"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r libraries, warning = FALSE, message = FALSE}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r read in files}
+ghs_brca2 <- read.csv('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ghs_brca2_cases.csv')
+ukbb_brca2 <- read.csv('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_cases.csv')
+ghs_brca1 <- read.csv('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ghs_brca1_cases.csv')
+ukbb_brca1 <- read.csv('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_cases.csv')
+```
+
+```{r}
+ukbb_brca2 %>% 
+  filter(grepl("9302", HGVSc))%>%
+  select(HGVSc, HGVSp)
+```
+
+
+
+
+

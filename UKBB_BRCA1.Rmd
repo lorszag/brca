@@ -1,0 +1,80 @@
+---
+title: "UKBB_BRCA1"
+output: html_document
+date: "2025-02-12"
+---
+
+```{r load libraries}
+library(data.table)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r plp data}
+ukbb_plp = fread('/Volumes/CGB_share/personal/Leila/UKBB_BRCA1_annotated_autoGVP_all_filter.txt')
+ukbb_plp = ukbb_plp %>%filter(autogvp_call == "Pathogenic" | autogvp_call == "Likely_pathogenic")
+```
+
+```{r filter plp}
+ukbb_plp_filtered = filter_dataset(ukbb_plp)
+```
+
+```{r possible plp}
+ukbb_possplp1 = read.delim('/Volumes/CGB_share/personal/Leila/UKBB_BRCA1_1_500K_annotated_01-22-2025.txt_autoGVP_possiblePLP.txt')
+ukbb_possplp2 = read.delim('/Volumes/CGB_share/personal/Leila/UKBB_BRCA1_2_500K_annotated_01-23-2025.txt_autoGVP_possiblePLP.txt')
+ukbb_possplp = rbind(ukbb_possplp1, ukbb_possplp2) # bind two datasets
+```
+
+```{r filter possible plp}
+ukbb_possplp$AD <- gsub('[^0-9.,]', '', ukbb_possplp$AD)
+ukbb_possplp$GQ <- gsub('[^0-9.,]', '', ukbb_possplp$GQ)
+ukbb_possplp$DP <- gsub('[^0-9.,]', '', ukbb_possplp$DP)
+  
+ukbb_possplp_filtered = ukbb_possplp %>% 
+    filter(GQ>30)%>%
+    mutate(filter = as.numeric(X)/as.numeric(DP))%>%
+    filter(filter>=.3 & filter <=.7)
+```
+
+```{r reclassify as needed}
+ukbb_possplp_filtered$Classification[ukbb_possplp_filtered$HGVSc == 'c.5066T>C'] = "VUS"
+ukbb_possplp_filtered$Classification[ukbb_possplp_filtered$HGVSc == 'c.670+1G>A'] = "VUS"
+```
+
+```{r filter filtered possible PLP}
+ukbb_possplp_filtered = ukbb_possplp_filtered %>% 
+  filter(Classification == "LP"| Classification == "P")
+```
+
+```{r create case dataframe}
+# format as characters
+ukbb_plp <- ukbb_plp %>% mutate(across(everything(), as.character))
+ukbb_possplp_filtered <- ukbb_possplp_filtered %>% mutate(across(everything(), as.character))
+# just keep columns they have in common
+common_cols <- intersect(names(ukbb_plp), names(ukbb_possplp_filtered))
+final_cases <- bind_rows(
+  select(ukbb_plp_filtered, all_of(common_cols)),
+  select(ukbb_possplp_filtered, all_of(common_cols))
+)
+```
+
+```{r exclusions}
+pulled_lp = ukbb_possplp_filtered%>%distinct(HGVSc)%>%pull(HGVSc)
+exclude = ukbb_possplp%>%
+  filter(HGVSc %in% pulled_lp)%>% # keep all designated variants
+  select(eid, autogvp_call)
+exclude = rbind(select(ukbb_plp, c(eid, autogvp_call)), exclude) # row bind
+exclude = exclude%>%distinct(eid, .keep_all = TRUE) # eliminate duplicates
+write.csv(exclude, "exclusion_data/ukbb_brca1_exclude.csv")
+```
+
+```{r checks}
+n_distinct(final_cases$eid)
+n_distinct(exclude$eid)
+setdiff(final_cases$eid, exclude$eid) # make sure all cases recorded as controls
+write.csv(final_cases, "case_data/ukbb_brca1_cases.csv") # save cases
+```
+```{r}
+min(as.numeric(final_cases$GQ))
+```
+

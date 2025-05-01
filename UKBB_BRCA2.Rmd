@@ -1,0 +1,132 @@
+---
+title: "BRCA2_UKBB"
+output: html_document
+date: "2025-01-30"
+---
+
+```{r load libraries}
+library(tidyverse)
+library(dplyr)
+library(data.table)
+```
+
+# plp
+```{r plp data}
+PLP = read.delim("/Volumes/CGB_share/personal/Leila/UKBB_BRCA2_annotated_autoGVP_all_filter.txt")
+PLP = filter(PLP, autogvp_call == "Pathogenic" | autogvp_call == "Likely_pathogenic")
+```
+
+```{r filter plp}
+PLP_filtered = filter_dataset(PLP)
+```
+
+# possible plp
+```{r possible plp data}
+possPLP1 = read.delim("/Volumes/CGB_share/personal/Leila/UKBB_BRCA2_1_500K_annotated_01-22-2025.txt_autoGVP_possiblePLP.txt")
+possPLP2 = read.delim("/Volumes/CGB_share/personal/Leila/UKBB_BRCA2_2_500K_annotated_01-23-2025.txt_autoGVP_possiblePLP.txt")
+possPLP = rbind(possPLP1, possPLP2)
+```
+
+```{r possible plp filter}
+possPLP_filtered = filter_dataset(possPLP)
+```
+
+```{r manual change of possible plp calls}
+possPLP_filtered$call = NA
+possPLP_filtered = possPLP_filtered%>%mutate(call = case_when(
+  HGVSc %in% c("c.572A>G", "c.1732G>C", "c.2471T>C", "c.2482T>C", "c.7522G>A", "c.7871A>G",
+               "c.7874G>T", "c.7892T>C", "c.8342A>G", "c.8351G>A", "c.8524C>T", "c.9538C>T", "c.7807G>A") ~ "VUS", # one star,
+  HGVSc %in% c("c.1763A>G", "c.7759C>T", "c.7879A>G") ~ "VUS", #Jung change
+  HGVSc %in% c("c.7786G>A", "c.7826G>C", "c.8023A>C") ~ "LP", # one star / no clinvar
+  HGVSc == "c.8188G>T" ~ "VUS" # two stars
+))
+```
+
+```{r filter possible plp}
+possPLP_filtered = possPLP_filtered %>%filter(call == "LP")
+```
+
+```{r bind possible plp & plp}
+PLP_filtered$call = NA
+PLP_filtered <- PLP_filtered %>% mutate(across(everything(), as.character))
+possPLP_filtered <- possPLP_filtered %>% mutate(across(everything(), as.character))
+common_cols <- intersect(names(PLP_filtered), names(possPLP_filtered))
+final_cases_no_av <- bind_rows(
+  select(PLP_filtered, all_of(common_cols)),
+  select(possPLP_filtered, all_of(common_cols))
+)
+```
+
+# all cases (avengers)
+```{r load all data}
+allcases=read.delim('/Volumes/CGB_share/personal/Leila/UKBB_BRCA2_annotated_autoGVP_all_filter.txt')
+allcases$call = NA
+allcases_filt <- allcases[, c('eid', 'start', 'alt', 'GQ', 'AD', 'DP', "clinvar_variant_id", "autogvp_call"), drop = FALSE]
+```
+
+## axon filters
+```{r avengers}
+avengers = avengers_run(allcases_filt, "start", "alt")
+```
+
+```{r find additional cases}
+avengers$eid = as.integer(avengers$eid)
+avengers$start = as.integer(avengers$start)
+final_cases_no_av$eid = as.integer(final_cases_no_av$eid)
+final_cases_no_av$start = as.integer(final_cases_no_av$start)
+```
+
+```{r filter avengers cases}
+avengers_filt = filter_dataset(avengers)
+```
+
+```{r}
+allcases$eid = as.integer(allcases$eid)
+allcases$start = as.integer(allcases$start)
+avengers_cases = allcases %>%
+  semi_join(avengers_filt, by = c("eid", "start")) # join back with original dataframe
+```
+
+```{r filter cases and bind new cases}
+avengers_filt = avengers_cases[, c('eid', 'start', 'alt', 'GQ', 'AD', 'DP', 'HGVSp', "HGVSc", "protein_position_vep", "POS", "REF", "ALT", "autogvp_call_reason"), drop = FALSE]
+cases_filt = final_cases_no_av[, c('eid', 'start', 'alt', 'GQ', 'AD', 'DP', 'HGVSp', "HGVSc", "protein_position_vep", "POS", "REF", "ALT", "autogvp_call_reason"), drop = FALSE]
+avengers_new = anti_join(avengers_filt, cases_filt, by = c("eid", "start")) # new filtered cases
+full_av_data = rbind(avengers_new, cases_filt) # row bind
+```
+
+```{r case numbers}
+n_distinct(final_cases_no_av$eid)
+n_distinct(full_av_data$eid)
+```
+
+```{r exclusions}
+#non-av exclude
+pulled_lp = possPLP_filtered%>%distinct(HGVSc)%>%pull(HGVSc)
+no_av_exclude = possPLP%>%
+  filter(HGVSc %in% pulled_lp)%>% # keep all designated variants
+  select(eid, autogvp_call)
+no_av_exclude = rbind(select(PLP, c(eid, autogvp_call)), no_av_exclude) # row bind
+no_av_exclude = no_av_exclude%>%distinct(eid, .keep_all = TRUE) # eliminate duplicates
+write.csv(no_av_exclude, "exclusion_data/ukbb_brca2_exclude.csv")
+
+# av exclude
+av_exclude = rbind(no_av_exclude, select(avengers, c(eid, autogvp_call)))
+av_exclude = av_exclude %>% distinct(eid, .keep_all = TRUE) # eliminate duplicates
+write.csv(av_exclude, "exclusion_data/ukbb_brca2_exclude_avengers.csv")
+```
+
+```{r count exclusions}
+n_distinct(no_av_exclude$eid)
+n_distinct(av_exclude$eid)
+```
+
+```{r check to make sure all cases in controls}
+setdiff(final_cases_no_av$eid, no_av_exclude$eid)
+setdiff(full_av_data$eid, av_exclude$eid)
+write.csv(final_cases_no_av, "case_data/ukbb_brca2_cases.csv")
+```
+
+```{r}
+min(as.numeric(avengers_cases$GQ))
+```
+

@@ -1,0 +1,86 @@
+---
+title: "Forest Plots"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r libraries}
+library(ggplot2)
+library(patchwork)
+library(readxl)
+```
+
+```{r read in files}
+brca1_malig <- read_excel('/Users/orszagl2/Documents/Genetics/ukbb_brca1_malignancies.xlsx')
+brca2_malig <- read_excel('/Users/orszagl2/Documents/Genetics/ukbb_brca2_malignancies.xlsx')
+brca1_ben <- read_excel('/Users/orszagl2/Documents/Genetics/ukbb_brca1_benign.xlsx')
+brca2_ben <- read_excel('/Users/orszagl2/Documents/Genetics/ukbb_brca2_benign.xlsx')
+map = read_excel('/Users/orszagl2/Documents/Genetics/benign_codes.xlsx')
+```
+
+```{r as factors}
+brca1_malig$Index <- factor(brca1_malig$Index, levels=rev(brca1_malig$Index))
+brca2_malig$Index <- factor(brca2_malig$Index, levels=rev(brca2_malig$Index))
+brca1_ben$Index <- factor(brca1_ben$Index, levels=rev(brca1_ben$Index))
+brca2_ben$Index <- factor(brca2_ben$Index, levels=rev(brca2_ben$Index))
+brca1_ben$lowCI = as.numeric(brca1_ben$lowCI)
+brca1_ben$highCI = as.numeric(brca1_ben$highCI)
+brca2_ben$lowCI = as.numeric(brca2_ben$lowCI)
+brca2_ben$highCI = as.numeric(brca2_ben$highCI)
+brca1_ben$OR = as.numeric(brca1_ben$OR)
+brca2_ben$OR = as.numeric(brca2_ben$OR)
+```
+
+```{r filter out 0s}
+brca1_ben = brca1_ben%>%filter(ncases!= 0)
+brca2_ben = brca2_ben%>%filter(ncases!= 0)
+brca1_malig = brca1_malig%>%filter(ncases!= 0)
+brca2_malig = brca2_malig%>%filter(ncases!= 0)
+```
+
+
+```{r confidence intervals}
+brca1_malig$OR_CI = paste0(round(brca1_malig$OR, 2), "[", round(brca1_malig$lowCI, 2), "-", round(brca1_malig$highCI, 2), "]")
+brca2_malig$OR_CI = paste0(round(brca2_malig$OR, 2), "[", round(brca2_malig$lowCI, 2), "-", round(brca2_malig$highCI, 2), "]")
+brca1_ben$OR_CI = paste0(round(as.numeric(brca1_ben$OR), 2), "[", round(as.numeric(brca1_ben$lowCI), 2), "-", round(as.numeric(brca1_ben$highCI), 2), "]")
+brca2_ben$OR_CI = paste0(round(as.numeric(brca2_ben$OR), 2), "[", round(as.numeric(brca2_ben$lowCI), 2), "-", round(as.numeric(brca2_ben$highCI), 2), "]")
+```
+
+```{r reformat brca2 malignancy}
+brca2_malig$ncontrols = paste0(brca2_malig$ncontrols, "(", round(brca2_malig$pcontrols, 2), ")")
+brca2_malig$ncases = paste0(brca2_malig$ncases, "(", round(brca2_malig$pcases, 2), ")")
+brca2_malig$. = brca1_malig$.
+colnames(brca2_malig)[11] = "p_value"
+```
+
+```{r inner join benign}
+brca2_ben = left_join(brca2_ben, map, by = "Index")
+brca1_ben = left_join(brca1_ben, map, by = "Index")
+```
+
+```{r reformat benign cases}
+brca2_ben$ncontrols = paste0(brca2_ben$ncontrols, "(", round(brca2_ben$pcontrols, 2), ")")
+brca2_ben$ncases = paste0(brca2_ben$ncases, "(", round(brca2_ben$pcases, 2), ")")
+brca1_ben$ncontrols = paste0(brca1_ben$ncontrols, "(", round(brca1_ben$pcontrols, 2), ")")
+brca1_ben$ncases = paste0(brca1_ben$ncases, "(", round(brca1_ben$pcases, 2), ")")
+```
+
+```{r brca1 malignancies}
+brca1_malig =brca1_malig%>%filter(Index != "C40-C41")
+forest_plot(brca1_malig, "BRCA 1 Malignancies")
+forest_plot_tab(brca1_malig, "BRCA 1 Malignancies")
+```
+
+```{r}
+forest_plot(brca2_malig, "BRCA 2 Malignancies")
+forest_plot_tab(brca2_malig, "BRCA 2 Malignancies")
+```
+```{r}
+forest_plot(brca1_ben, "BRCA 1 Benign")
+forest_plot_tab(brca1_ben, "BRCA 1 Benign")
+```
+
+```{r}
+forest_plot(brca2_ben, "BRCA 2 Malignancies")
+forest_plot_tab(brca2_ben, "BRCA 2 Malignancies")
+```

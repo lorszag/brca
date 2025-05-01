@@ -1,0 +1,103 @@
+---
+title: "GHS_BRCA2"
+output: html_document
+date: "2025-02-12"
+---
+
+```{r libraries message = FALSE, warning = FALSE}
+library(tidyverse)
+library(dplyr)
+library(data.table)
+```
+
+```{r read in PLP data}
+PLP = fread("/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_PLP.txt")
+```
+
+```{r filter PLP data}
+PLP_filtered = filter_dataset(PLP)
+```
+
+```{r read in possible PLP data}
+possPLP = fread("/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt")
+```
+
+```{r filter possible PLP data}
+possPLP_filtered = filter_dataset(possPLP)
+```
+
+```{r pull LP variants}
+possPLP$call = NA
+possPLP_filtered = possPLP_filtered%>%mutate(call = case_when(
+  HGVSc %in% c('c.68-2A>G', 'c.91T>G', 'c.7684T>C', 'c.7759C>T', 'c.7795G>A', 'c.8351G>A', 'c.8524C>T', 
+               'c.8524C>T', 'c.9117+3A>G', 'c.9218A>G', 'c.7786G>A') ~ "VUS", # one star,
+  HGVSc %in% c('c.7805G>A', 'c.8188G>T', 'c.8363G>T', 'c.8732C>G') ~ "VUS", #two stars
+  HGVSc %in% c('c.425G>T') ~ "LP", # two stars for breast cancer
+  HGVSc %in% c('c.7786G>A', 'c.7786G>A') ~ "LP" # one star
+))
+```
+
+```{r filter for LP variants}
+possPLP_filt = possPLP_filtered %>%filter(call == "LP")
+```
+
+```{r final cases without avengers}
+PLP$call = NA
+final_cases_no_avengers = rbind(PLP_filtered, possPLP_filt, fill = TRUE)
+write.csv(final_cases_no_avengers, "case_data/ghs_brca2_cases.csv")
+```
+
+```{r read in full data}
+allcases = fread("/Volumes/CGB_share/personal/Leila/GHS_BRCA2_annotatated_autoGVP_all_filter.txt")
+setDF(allcases)
+```
+
+```{r run avengers filters}
+avengers = avengers_run(allcases, "POS", "ALT")
+```
+
+```{r filter avengers}
+avengers_filtered = filter_dataset(avengers)
+```
+
+```{r make sure cases include all the data for that participant}
+avengers_cases = allcases %>%
+  semi_join(avengers_filtered, by = c("PTID", "POS"))
+avengers_new = anti_join(avengers_cases, final_cases_no_avengers, by = c("PTID", "POS")) # check for new cases
+```
+
+```{r}
+final_cases_no_avengers <- final_cases_no_avengers %>% mutate(across(everything(), as.character))
+avengers_new <- avengers_new %>% mutate(across(everything(), as.character))
+# just keep columns they have in common
+common_cols <- intersect(names(final_cases_no_avengers), names(avengers_new))
+final_cases_av <- bind_rows(
+  select(final_cases_no_avengers, all_of(common_cols)),
+  select(avengers_new, all_of(common_cols))
+)
+write.csv(final_cases_av, "case_data/ghs_brca2_cases_avengers.csv")
+```
+
+```{r exclusions}
+#non-av exclude
+pulled_lp = possPLP_filtered%>%distinct(HGVSc)%>%pull(HGVSc)
+exclude = possPLP%>%
+  filter(HGVSc %in% pulled_lp)%>% # keep all designated variants
+  select(PTID, autogvp_call)
+exclude = rbind(select(PLP, c(PTID, autogvp_call)), exclude) # row bind
+exclude = exclude%>%distinct(PTID, .keep_all = TRUE) # eliminate duplicates
+
+exclude = rbind(exclude, select(avengers, c(PTID, autogvp_call)))
+exclude = exclude %>% distinct(PTID, .keep_all = TRUE) # eliminate duplicates
+write.csv(exclude, "exclusion_data/ghs_brca2_exclude.csv")
+```
+
+```{r count exclusions}
+n_distinct(exclude$PTID)
+```
+
+```{r check to make sure all cases in controls}
+setdiff(final_cases_no_avengers$PTID, exclude$PTID)
+setdiff(final_cases_av$PTID, exclude$PTID)
+```
+

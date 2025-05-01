@@ -1,0 +1,237 @@
+---
+title: "Survival Analysis (BRCA1)"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE, warning = FALSE}
+library(survival)
+library(ggfortify)
+library(MASS)
+library(patchwork)
+library(survminer)
+library(ranger)
+library(tidyverse)
+library(dplyr)
+library(patchwork)
+library(broom)
+library(data.table)
+```
+
+```{read in files}
+controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
+brca1 <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
+pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+```
+
+```{r}
+pheno = pheno%>%mutate(across(c(p20110_i0, p20110_i1, p20110_i2, p20110_i3, p20111_i0, p20111_i1, p20111_i2, p20111_i3,), ~ str_replace_all(as.character(.), "[\\[\\]']", ""))) %>%  # Clean brackets and quotes
+  mutate(mom_bc = ifelse(rowSums(across(starts_with("p20110_i"), ~ grepl("Breast cancer", .)), na.rm = TRUE) > 0, 1, 0),
+         sis_bc = ifelse(rowSums(across(starts_with("p20111_i"), ~ grepl("Breast cancer", .)), na.rm = TRUE) > 0, 1, 0),
+         fam_hx = ifelse(mom_bc == 1 | sis_bc == 1, 1, 0))
+pheno$fam_hx = as.factor(pheno$fam_hx)
+```
+
+
+# Time to Cancer
+```{r definitions of years & cancers}
+#Define cancers from ICD10 and ICD9 codes
+cancers<-"C[[:digit:]]|^1[456789]|'1[456789]|^20[0-8]|'20[0-8]|^209[[[:blank:]]0123]|'209['0123]"
+
+#Which columns cancer incidence are looked at 
+regcodes<-c("p40006_i0","p40006_i1","p40006_i2","p40006_i3","p40006_i4","p40006_i5","p40006_i6", 
+            "p40006_i7","p40006_i8","p40006_i9","p40006_i10","p40006_i11","p40006_i12","p40006_i13","p40006_i14",
+            "p40006_i15","p40006_i16","p40006_i17","p40006_i18","p40006_i19","p40006_i20","p40006_i21",
+            "p40013_i0","p40013_i1","p40013_i2","p40013_i3","p40013_i4","p40013_i5","p40013_i6",
+            "p40013_i7","p40013_i8","p40013_i9","p40013_i10","p40013_i11","p40013_i12","p40013_i13","p40013_i14")
+
+CONSTANTYEAR<-2024
+#year when cancer registry started in UK
+STARTYEAR<-1970
+```
+
+```{r run functions}
+D1 = run_stitch(cancers, brca1, pheno)
+```
+
+```{r}
+D1 = D1%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r cox ph cancer}
+survres1<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D1)
+survres1_nofam <-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D1)
+
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo + fam_hx, data=D1)
+
+fit1 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p31 + p34+ smokestat, data=D1)
+summary (fit1)
+exp(confint(fit1))
+```
+
+```{r cox plot cancer}
+survival_plot_fam(survres1, D1, "Time To All Cancer", "event", 20, .6)
+survival_plot(survres1_nofam, D1, "Time To All Cancer", "event", 20, .6)
+```
+
+# All Cause Mortality
+```{r define constants and set up df}
+CONSTANTYEAR<-2024
+STARTYEAR<-2006
+R2<-disc(pheno,regcodes,cancers)
+D2<-stitch(pheno,brca1[,1],controls[,1],R2[[1]])
+STOPYEAR<-substr(D2$p191,1,4)
+STOPYEAR[!STOPYEAR>0|is.na(STOPYEAR)]<-CONSTANTYEAR
+STOPYEAR<-as.numeric(STOPYEAR)
+D2<-cbind(D2,STOPYEAR)
+TE<-D2$STOPYEAR-D2$p34
+EV<-numeric(length(TE))
+EV[D2$p40007_i0>1|D2$p40007_i1>1]<-1
+TE[EV==1]<-D2$p40007_i0[!is.na(D2$p40007_i0)]
+
+D2<-cbind(D2,TE,EV)
+```
+
+```{r}
+D2 = D2%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r cox ph death}
+survres2<-survfit(Surv(TE, EV) ~ gr_combo, data=D2)
+survres2_nofam <-survfit(Surv(TE, EV) ~ GR, data=D2)
+coxph(Surv(TE, EV) ~ gr_combo, data=D2)
+
+fit2 <- coxph(Surv(TE, EV) ~ GR + bmis+ p31 + p34+ smokestat+group, data=D2)
+summary (fit2)
+exp(confint(fit2))
+```
+
+```{r cox plot death}
+survival_plot_fam(survres2, D2, "All Cause Mortality", NULL, 40, 1)
+survival_plot(survres2_nofam, D2, "All Cause Mortality", NULL, 40, 1)
+```
+
+# Time to Breast/Ovarian Cancer
+```{r define breast/ovarian cancers}
+pheno2 <- pheno %>% filter (p31=="Female")
+b_o_cancers<-"C50|^C50|^17[45]|'17[45]|C56|^C56|^1830|'1830"
+STARTYEAR<-1970
+```
+
+```{r}
+D3 = run_stitch(b_o_cancers, brca1, pheno2)
+```
+
+```{r}
+D3 = D3%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r run models breast/ovarian}
+survres3<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D3)
+survres3_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D3)
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D3)
+fit3 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p34 + smokestat, data=D3)
+summary (fit3)
+exp(confint(fit3))
+```
+
+
+
+```{r cox plot breast & ovarian}
+survival_plot_fam(survres3, D3, "Time to Breast/Ovarian Cancer", "event", 20, .8)
+survival_plot(survres3_nofam, D3, "Time to Breast/Ovarian Cancer", "event", 20, .6)
+```
+
+# Time to Breast Cancer
+```{r define breast cancers}
+b_cancers<-"C50|^C50|^17[45]|'17[45]"
+STARTYEAR<-1970
+```
+
+```{r}
+D4 = run_stitch(b_cancers, brca1, pheno2)
+```
+
+```{r}
+D4 = D4%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r run models breast}
+survres4<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D4)
+survres4_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D4)
+
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D4)
+
+fit4 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D4)
+summary (fit4)
+exp(confint(fit4))
+```
+
+```{r cox plot breast}
+survival_plot_fam(survres4, D4, "Time to Breast Cancer", "event", 20, .8)
+survival_plot(survres4_nofam, D4, "Time to Breast Cancer", "event", 20, .6)
+```
+
+# Time to Ovarian Cancer
+```{r define ovarian cancers}
+o_cancers<-"C56|^C56|^1830|'1830"
+STARTYEAR<-1970
+```
+
+```{r run functions for ovarian cancer}
+D5 = run_stitch(o_cancers, brca1, pheno2)
+```
+
+```{r}
+D5 = D5%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r run models ovarian}
+survres5<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D5)
+survres5_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D5)
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D5)
+fit5 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D5) # remove gender since only women
+summary (fit5)
+exp(confint(fit5))
+```
+
+```{r cox plot ovarian}
+survival_plot_fam(survres5, D5, "Time to Ovarian Cancer", "event", 40, .6)
+survival_plot(survres5_nofam, D5, "Time to Ovarian Cancer", "event", 40, .6)
+```
+
+```{r male breast cancer}
+D4_pos = D4%>%filter(GR == 1)
+table(D4_pos$p31, D4_pos$res)
+```
+

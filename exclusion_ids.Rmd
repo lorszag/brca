@@ -1,0 +1,113 @@
+---
+title: "Exclusion_IDs"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r message = FALSE, warning = FALSE}
+library(tidyverse)
+library(dplyr)
+library(data.table)
+```
+
+Need to exclude all people with LP/P calls
+# BRCA1
+## GHS
+```{r read in csvs ghs}
+ghs_plp = fread('/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_PLP.txt', select = c("PTID", "autogvp_call"))
+ghs_possplp = fread('/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt', select = c("PTID", "autogvp_call"))
+ghs_possplp_edited = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/ghs_brca1_possplp.csv')
+```
+
+```{r filter ghs}
+# need to remove those we reclassified as VUS
+ghs_possplp_orig = ghs_possplp%>%filter(autogvp_call == "Likely_pathogenic" | autogvp_call == "Pathogenic")
+ghs_possplp_vus = ghs_possplp_edited%>%filter(call == "VUS")
+ghs_possplp_plp = ghs_possplp_edited%>%filter(call == "LP" | call == "P")%>%select(c("PTID", "call"))
+```
+
+```{r create list of PTIDs}
+ghs_exclusion = anti_join(ghs_possplp_orig, ghs_possplp_vus) # remove any reclassified as VUS
+ghs_exclusion = rbind(ghs_exclusion, ghs_possplp_plp, use.names = FALSE)
+ghs_exclusion = rbind(ghs_exclusion, ghs_plp, use.names = FALSE)
+ghs_exclusion = ghs_exclusion%>%distinct(PTID, .keep_all = TRUE) # eliminate duplicates
+```
+
+
+## UKBB
+```{r read in csvs ukbb}
+ukbb_plp = fread('/Volumes/CGB_share/personal/Leila/UKBB_BRCA1_annotated_autoGVP_all_filter.txt')
+ukbb_plp = filter(ukbb_plp, autogvp_call == "Pathogenic" | autogvp_call == "Likely_pathogenic")
+ukbb_possplp = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/exclude_plp_ukbb_brca1.csv') 
+```
+
+```{r filter ukbb}
+ukbb_exclusion_cases = ukbb_plp%>%
+  select(autogvp_call, eid)
+ukbb_filtered_possplp = ukbb_possplp%>%
+  select(Classification, eid)
+```
+
+```{r create list of EIDs}
+names(ukbb_filtered_possplp) = names(ukbb_exclusion_cases)
+ukbb_exclusion_cases = rbind(ukbb_exclusion_cases, ukbb_filtered_possplp)
+ukbb_exclusion_cases = ukbb_exclusion_cases%>%distinct(eid, .keep_all = TRUE) # eliminate duplicates
+```
+
+
+# BRCA2
+## GHS
+
+```{r read in csvs ghs}
+ghs_plp = fread('/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_PLP.txt', select = c("PTID", "autogvp_call"))
+ghs_possplp = fread('/Volumes/CGB_share/personal/Leila/BRCA2_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt', select = c("PTID", "autogvp_call"))
+ghs_possplp_edited = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/ghs_brca2_possplp.csv')
+```
+
+```{r}
+avengers = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/avengers.csv')
+avengers = select(avengers, c('PTID', 'autogvp_call'))
+```
+
+
+```{r filter ghs}
+# need to remove those we reclassified as VUS
+ghs_possplp_orig = ghs_possplp%>%filter(autogvp_call == "Likely_pathogenic" | autogvp_call == "Pathogenic")
+ghs_possplp_vus = ghs_possplp_edited%>%filter(call == "VUS")
+ghs_possplp_plp = ghs_possplp_edited%>%filter(call == "LP" | call == "P")%>%select(c("PTID", "call"))
+names(ghs_possplp_plp) = c("PTID", "autogvp_call")
+```
+
+```{r create list of PTIDs}
+ghs_exclusion = ghs_possplp_plp
+ghs_exclusion = rbind(ghs_exclusion, avengers, use.names = FALSE)
+ghs_exclusion = rbind(ghs_exclusion, ghs_plp, use.names = FALSE)
+ghs_exclusion = ghs_exclusion%>%distinct(PTID, .keep_all = TRUE) # eliminate duplicates
+```
+
+## UKBB
+```{r read in csvs ukbb}
+PLP = read.delim("/Volumes/CGB_share/personal/Leila/UKBB_BRCA2_annotated_autoGVP_all_filter.txt")
+PLP = filter(PLP, autogvp_call == "Pathogenic" | autogvp_call == "Likely_pathogenic")
+ukbb_possplp = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/ukbb_brca2_possplp.csv') 
+ukbb_avengers = read.csv('/Users/orszagl2/Documents/Genetics/exclusion_data/addtl_avengers_ukbb.csv')
+```
+
+```{r filter ukbb}
+ukbb_exclusion_cases = PLP%>%
+  select(autogvp_call, eid)
+avengers = ukbb_avengers%>%
+  select(autogvp_call, eid)
+ukbb_filtered_possplp = ukbb_possplp%>%
+  select(call, eid)
+```
+
+```{r create list of EIDs}
+names(ukbb_filtered_possplp) = names(ukbb_exclusion_cases)
+ukbb_exclusion_cases = rbind(ukbb_exclusion_cases, ukbb_filtered_possplp)
+#ukbb_exclusion_cases = rbind(ukbb_exclusion_cases, avengers)
+ukbb_exclusion_cases = ukbb_exclusion_cases%>%distinct(eid, .keep_all = TRUE) # eliminate duplicates
+```
+
+
+

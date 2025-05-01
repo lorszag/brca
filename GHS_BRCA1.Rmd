@@ -1,0 +1,62 @@
+---
+title: "GHS_BRCA1"
+output: html_document
+date: "2025-02-12"
+---
+
+```{r libraries message = FALSE, warning = FALSE}
+library(tidyverse)
+library(dplyr)
+library(data.table)
+```
+
+```{r read in PLP data}
+PLP = fread("/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_PLP.txt")
+```
+
+```{r filter PLP data}
+PLP_filtered = filter_dataset(PLP)
+```
+
+```{r read in possible PLP data}
+possPLP = read.delim("/Volumes/CGB_share/personal/Leila/BRCA1_annotated_final_02-12-2025.txt_autoGVP_possiblePLP.txt")
+```
+
+```{r filter possible PLP data}
+possPLP_filtered = filter_dataset(possPLP)
+```
+
+
+```{r pull LP variants}
+possPLP_filtered = possPLP_filtered%>%mutate(call = case_when(
+  HGVSc %in% c('c.5288G>T', 'c.5075A>T', 'c.4159T>C', 'c.301+6T>C', 'c.301+1G>A') ~ "VUS", # one star,
+  HGVSc %in% c('c.5309G>C', 'c.670+1G>T') ~ "VUS", #Jung change
+  HGVSc %in% c('c.5246C>T', 'c.5143A>G', 'c.77T>C') ~ "LP", # one star
+))
+```
+
+```{r filter for LP variants}
+possPLP_filtered = possPLP_filtered %>%filter(call == "LP")
+```
+
+```{r final cases}
+PLP$call = NA
+final_cases = rbind(PLP_filtered, possPLP_filtered, fill = TRUE) 
+write.csv(final_cases, "case_data/ghs_brca1_cases.csv")
+```
+
+```{r exclusions}
+pulled_lp = possPLP_filtered%>%distinct(HGVSc)%>%pull(HGVSc)
+exclude = possPLP%>%
+  filter(HGVSc %in% pulled_lp)%>% # keep all designated variants
+  select(PTID, autogvp_call)
+exclude = rbind(select(PLP, c(PTID, autogvp_call)), exclude) # row bind
+exclude = exclude%>%distinct(PTID, .keep_all = TRUE) # eliminate duplicates
+write.csv(exclude, "exclusion_data/ghs_brca1_exclude.csv")
+```
+
+```{r check exclusions}
+setdiff(final_cases$PTID, exclude$PTID)
+```
+
+
