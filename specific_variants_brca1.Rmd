@@ -1,0 +1,125 @@
+---
+title: "Specific Variant Analysis"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r libraries, warning = FALSE, message = FALSE}
+library(data.table)
+library(tidyverse)
+library(dplyr)
+library(gtsummary)
+```
+
+```{r read in files}
+brca1 = read.csv('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_cases.csv')
+pheno = fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
+```
+
+```{r clean phenotype}
+pheno = pheno%>%mutate(across(c(p20110_i0, p20110_i1, p20110_i2, p20110_i3, p20111_i0, p20111_i1, p20111_i2, p20111_i3,), ~ str_replace_all(as.character(.), "[\\[\\]']", ""))) %>%  # Clean brackets and quotes
+  mutate(mom_bc = ifelse(rowSums(across(starts_with("p20110_i"), ~ grepl("Breast cancer", .)), na.rm = TRUE) > 0, 1, 0),
+         sis_bc = ifelse(rowSums(across(starts_with("p20111_i"), ~ grepl("Breast cancer", .)), na.rm = TRUE) > 0, 1, 0),
+         fam_hx = ifelse(mom_bc == 1 | sis_bc == 1, 1, 0))
+pheno$fam_hx = as.factor(pheno$fam_hx)
+```
+
+```{r pull variants to use}
+brca1%>%
+  group_by(HGVSc)%>%
+  summarize(n = n())%>%
+  filter(n >30)
+```
+
+```{r new dataframes}
+brca1_4065 = brca1%>%filter(HGVSc == "c.4065_4068del")%>%dplyr::select(eid)
+brca1_68 = brca1%>%filter(HGVSc == "c.68_69del")%>%dplyr::select(eid)
+```
+
+# Time to Cancer
+```{r definitions of years & cancers}
+#Define cancers from ICD10 and ICD9 codes
+cancers<-"C[[:digit:]]|^1[456789]|'1[456789]|^20[0-8]|'20[0-8]|^209[[[:blank:]]0123]|'209['0123]"
+
+#Which columns cancer incidence are looked at 
+regcodes<-c("p40006_i0","p40006_i1","p40006_i2","p40006_i3","p40006_i4","p40006_i5","p40006_i6", 
+            "p40006_i7","p40006_i8","p40006_i9","p40006_i10","p40006_i11","p40006_i12","p40006_i13","p40006_i14",
+            "p40006_i15","p40006_i16","p40006_i17","p40006_i18","p40006_i19","p40006_i20","p40006_i21",
+            "p40013_i0","p40013_i1","p40013_i2","p40013_i3","p40013_i4","p40013_i5","p40013_i6",
+            "p40013_i7","p40013_i8","p40013_i9","p40013_i10","p40013_i11","p40013_i12","p40013_i13","p40013_i14")
+
+CONSTANTYEAR<-2024
+#year when cancer registry started in UK
+STARTYEAR<-1970
+```
+
+```{r run functions}
+D1_4065 = run_stitch(cancers, brca1_4065, pheno)
+D1_68 = run_stitch(cancers, brca1_68, pheno)
+```
+
+```{r family history edit}
+D1_4065 = D1_4065%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+
+D1_68 = D1_68%>%
+  mutate(gr_combo = case_when(
+    GR == 0 & fam_hx == 0 ~"Non-Carrier, No Family History",
+    GR == 1 & fam_hx == 0 ~"Carrier, No Family History",
+    GR == 0 & fam_hx == 1 ~"Non-Carrier, Family History",
+    GR == 1 & fam_hx == 1 ~"Carrier, Family History",
+  ))
+```
+
+```{r cox ph cancer variant 4065}
+survres1_4065<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D1_4065)
+survres1_nofam_4065 <-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D1_4065)
+
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo + fam_hx, data=D1_4065)
+
+fit1_4065 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p31 + p34+ smokestat, data=D1_4065)
+summary (fit1_4065)
+exp(confint(fit1_4065))
+```
+
+```{r cox ph cancer variant 68}
+survres1_68<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D1_68)
+survres1_nofam_68 <-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D1_68)
+
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo + fam_hx, data=D1_68)
+
+fit1_68 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p31 + p34+ smokestat, data=D1_68)
+summary (fit1_68)
+exp(confint(fit1_68))
+```
+
+```{r cox plot cancer}
+survival_plot_fam(survres1_4065, D1_4065, "Time To All Cancer", "event", 20, .6)
+survival_plot(survres1_nofam_4065, D1_4065, "Time To All Cancer", "event", 20, .6)
+survival_plot_fam(survres1_68, D1_68, "Time To All Cancer", "event", 20, .6)
+survival_plot(survres1_nofam_68, D1_68, "Time To All Cancer", "event", 20, .6)
+```
+
+```{r tables}
+D1_68%>%tbl_cross(row = GR, col = res, percent = 'row')
+D1_4065%>%tbl_cross(row = GR, col = res, percent = 'row')
+D1_68 = D1_68%>%
+  mutate(dead = ifelse(is.na(p40007_i0), "No Death", "Death"))
+D1_4065 = D1_4065%>%
+  mutate(dead = ifelse(is.na(p40007_i0), "No Death", "Death"))
+
+D1_68%>%tbl_cross(row = GR, col = dead, percent = 'row')
+D1_4065%>%tbl_cross(row = GR, col = dead, percent = 'row')
+```
+
+```{r}
+D1_4065%>%filter(GR == 1 & res == 1)
+```
+
+

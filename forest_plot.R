@@ -1,9 +1,9 @@
-forest_plot = function(data, title){
-  p <- ggplot(data, aes(x = OR, y = Index)) + 
+forest_plot = function(data, title, colname){
+  p <- ggplot(data, aes(x = OR, y = {{colname}}, col = study, fill = study)) + 
     geom_vline(aes(xintercept = 1), size = .25, linetype = "dashed") + 
     geom_errorbarh(aes(xmax = highCI, xmin = lowCI), size = .5, height = 
-                     .5, color = "gray50") +
-    geom_point(size = 3.5, color = "orange") +
+                     .5, color = "gray50", position=position_dodge(width = 1)) +
+    geom_point(size = 3.5, position=position_dodge(width = 1)) +
     theme_bw()+
     theme(panel.grid.minor = element_blank()) +
     ylab("") +
@@ -13,11 +13,11 @@ forest_plot = function(data, title){
 }
 
 forest_plot_tab = function(data, title){
-  p <- ggplot(data, aes(x = OR, y = Index)) + 
+  p <- ggplot(data, aes(x = OR, y = Index, col = study, fill = study)) + 
     geom_vline(aes(xintercept = 1), size = .25, linetype = "dashed") + 
     geom_errorbarh(aes(xmax = highCI, xmin = lowCI), size = .5, height = 
                      .5, color = "gray50") +
-    geom_point(size = 3.5, color = "orange") +
+    geom_point(size = 3.5) +
     theme_bw()+
     theme(panel.grid.minor = element_blank()) +
     ylab("") +

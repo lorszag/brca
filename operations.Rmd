@@ -1,0 +1,73 @@
+---
+title: "Demographic Table"
+output: html_document
+date: "`r Sys.Date()`"
+---
+```{r}
+library(dplyr)
+library(stringr)
+```
+
+
+```{r}
+operations = read.delim('/Users/orszagl2/Documents/Genetics/operations/BRCA_operation.txt')
+brca1_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
+brca1_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
+```
+
+```{r}
+operations <- operations %>%
+  mutate(
+    oper3_cat = case_when(
+      str_detect(oper3, "672 Partial oophorectomy") ~ "Partial oopherectomy",
+      str_detect(oper3, "672.1 Partial oophorectomy : wedge resection") ~ "Partial oopherectomy",
+      str_detect(oper3, "672.3 Partial oophorectomy : excision of lesion") ~ "Partial oopherectomy",
+      str_detect(oper3, "681.1 Salpingo-oophorectomy : unilateral") ~ "Unilateral salpingo_oopherectomy",
+      str_detect(oper3, "681.2 Salpingo-oophorectomy : bilateral") ~ "Bilateral salpingo_oopherectomy",
+      str_detect(oper3, "691 Extended hysterectomy") ~ "Total hysterectomy",
+      str_detect(oper3, "692.1 Radical hysterectomy : with pelvic lymphadenectomy") ~ "Total hysterectomy",
+      str_detect(oper3, "693.1 Vaginal hysterectomy : total") ~ "Total hysterectomy",
+      str_detect(oper3, "693.3 Vaginal hysterectomy : with repair of prolapse") ~ "Total hysterectomy",
+      str_detect(oper3, "694 Sub-total hysterectomy") ~ "Partial hysterectomy",
+      str_detect(oper3, "696 Hysterectomy, not elsewhere classified") ~ "Hysterectomy (other/NEC)",
+      str_detect(oper3, "696.1 Hysterectomy, not elsewhere classified : total hysterectomy") ~ "Total hysterectomy",
+      TRUE ~ NA_character_
+    ),
+    
+    oper4_cat = case_when(
+      str_detect(oper4, "Q07.1 Abdominal hysterocolpectomy and excision of periuterine tissue") ~ "Total hysterectomy",
+      str_detect(oper4, "Q07.2 Abdominal hysterectomy and excision of periuterine tissue NEC") ~ "Total hysterectomy",
+      str_detect(oper4, "Q07.3 Abdominal hysterocolpectomy NEC") ~ "Total hysterectomy",
+      str_detect(oper4, "Q07.4 Total abdominal hysterectomy NEC") ~ "Total hysterectomy",
+      str_detect(oper4, "Q07.5 Subtotal abdominal hysterectomy") ~ "Partial hysterectomy",
+      str_detect(oper4, "Q08.1 Vaginal hysterocolpectomy and excision of periuterine tissue") ~ "Total hysterectomy",
+      str_detect(oper4, "Q08.2 Vaginal hysterectomy and excision of periuterine tissue NEC") ~ "Total hysterectomy",
+      str_detect(oper4, "Q08.3 Vaginal hysterocolpectomy NEC") ~ "Total hysterectomy",
+      str_detect(oper4, "Q22.1 Bilateral salpingoophorectomy") ~ "Bilateral salpingo_oopherectomy",
+      str_detect(oper4, "Q22.3 Bilateral oophorectomy NEC") ~ "Bilateral oopherectomy",
+      str_detect(oper4, "Q23.1 Unilateral salpingoophorectomy NEC") ~ "Unilateral salpingo_oopherectomy",
+      str_detect(oper4, "Q23.2 Salpingoophorectomy of remaining solitary fallopian tube and ovary") ~ "Unilateral salpingo_oopherectomy",
+      str_detect(oper4, "Q23.5 Unilateral oophorectomy NEC") ~ "Unilateral oopherectomy",
+      str_detect(oper4, "Q23.6 Oophorectomy of remaining solitary ovary NEC") ~ "Unilateral oopherectomy",
+      str_detect(oper4, "Q24.1 Salpingoophorectomy NEC") ~ "Bilateral salpingo_oopherectomy",
+      str_detect(oper4, "Q24.3 Oophorectomy NEC") ~ "Bilateral oopherectomy",
+      str_detect(oper4, "R25.1 Caesarean hysterectomy") ~ "Hysterectomy (other/NEC)",
+      TRUE ~ NA_character_
+    ),
+    
+    surgery_category = coalesce(oper3_cat, oper4_cat)  # Combine the results into a single column
+  ) %>%
+  select(-oper3_cat, -oper4_cat)  # Remove temporary columns
+```
+
+```{r}
+operations = operations%>%mutate(brca1 = case_when(eid %in% brca1_cases$eid ~ "case",
+                                                   eid %in% brca1_controls$eid ~ "control",
+                                                   TRUE ~ NA))
+```
+
+```{r}
+tab= table(operations$surgery_category, operations$brca1)
+prop.table(tab)
+```
+
