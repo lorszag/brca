@@ -1,7 +1,7 @@
 ---
-title: "Forest Plots BRCA1"
-output: html_document
-date: "2025-05-05"
+title: "Forest Plots BRCA2"
+output: pdf_document
+date: "`r Sys.Date()`"
 ---
 
 ```{r libraries}
@@ -11,14 +11,14 @@ library(readxl)
 ```
 
 ```{r read in files}
-ukbb_malig <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca1_malignancies.xlsx')
-ukbb_ben <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca1_benign.xlsx')
-ghs_malig = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca1_malig.xlsx')
-ghs_ben = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca1_benign.xlsx')
+ukbb_malig <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca2_malignancies.xlsx')
+ukbb_ben <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca2_benign.xlsx')
+ghs_malig = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_malig.xlsx')
+ghs_ben = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_benign.xlsx')
 map = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/benign_codes.xlsx')
-ghs_malig_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca1_malig.xlsx', sheet = 2)
-ghs_ben_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca1_benign.xlsx', sheet = 2)
-ukbb_ben_expand <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca1_benign.xlsx', sheet = 2)
+ghs_malig_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_malig.xlsx', sheet = 2)
+ghs_ben_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_benign.xlsx', sheet = 2)
+ukbb_ben_expand <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca2_benign.xlsx', sheet = 2)
 ```
 
 ```{r write study columns}
@@ -69,22 +69,17 @@ benign_expand = benign_expand%>%
   left_join(map, by = "Index")
 ```
 
-```{r}
-names(ukbb_ben_expand)
-names(ghs_ben_expand)
-```
-
 ```{r confidence intervals}
 malig$OR_CI = paste0(round(malig$OR, 2), "[", round(malig$lowCI, 2), "-", round(malig$highCI, 2), "]")
 ghs_malig_expand$OR_CI = paste0(round(ghs_malig_expand$OR, 2), "[", round(ghs_malig_expand$lowCI, 2), "-", round(ghs_malig_expand$highCI, 2), "]")
 ```
 
 ```{r}
-forest_plot(malig, "BRCA 1 Malignancies", abbrev)
+forest_plot(malig, "BRCA 2 Malignancies", abbrev)
 ```
 
 ```{r brca1 benign}
-forest_plot(benign, "BRCA 1 Benign", .)
+forest_plot(benign, "BRCA 2 Benign", .)
 ```
 
 ```{r}
@@ -93,10 +88,10 @@ benign$p_value <- as.numeric(benign$p_value)
 benign%>%filter(p_value<.05 | pv <.05)
 ```
 
-```{r brca1 ghs malig expanded}
-forest_plot(ghs_malig_expand, "BRCA 1 Malignant Expanded", icd10_group_desc)
+```{r brca1 malignant expanded}
+forest_plot(ghs_malig_expand, "BRCA 2 Malignant Expanded", icd10_group_desc)
 ```
 
-```{r brca1 benign expanded}
-forest_plot(benign_expand, "BRCA 1 Benign Expanded", .)
+```{r brca1 malignant expanded}
+forest_plot(benign_expand, "BRCA 2 Benign Expanded", .)
 ```
