@@ -1,21 +1,23 @@
 ---
-title: "Demographic Table"
+title: "Operation Data"
 output: html_document
 date: "`r Sys.Date()`"
 ---
-```{r}
-library(dplyr)
-library(stringr)
+```{r packages}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(stringr)
+  library(fastDummies)
+} )
 ```
 
-
-```{r}
+```{r read in data}
 operations = read.delim('/Users/orszagl2/Documents/Genetics/operations/BRCA_operation.txt')
 brca1_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
 brca1_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
 ```
 
-```{r}
+```{r mutate operations}
 operations <- operations %>%
   mutate(
     oper3_cat = case_when(
@@ -60,14 +62,19 @@ operations <- operations %>%
   select(-oper3_cat, -oper4_cat)  # Remove temporary columns
 ```
 
-```{r}
+```{r brca1 status}
 operations = operations%>%mutate(brca1 = case_when(eid %in% brca1_cases$eid ~ "case",
                                                    eid %in% brca1_controls$eid ~ "control",
                                                    TRUE ~ NA))
 ```
 
-```{r}
-tab= table(operations$surgery_category, operations$brca1)
-prop.table(tab)
+```{r dummy columns}
+operations <- dummy_cols(operations, select_columns = "surgery_category", remove_first_dummy = FALSE, remove_selected_columns = FALSE)
 ```
 
+```{r fisher tests}
+partial_hist = data.frame(case = c(4, 544), control = c(1253, 469006-1253))
+fisher.test(partial_hist)
+total_hist = data.frame(case = c(49, 548-49), control = c(13481, 469006-13481))
+fisher.test(total_hist)
+```

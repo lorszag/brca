@@ -1,0 +1,173 @@
+---
+title: "Demographic Table"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r libraries}
+suppressPackageStartupMessages({
+  library("ggfortify")
+  library("MASS")
+  library("stringr")
+  library("optparse")
+  library("patchwork")
+  library("dplyr")
+  library("broom")
+  library("optparse")
+  library(data.table)
+} )
+```
+
+```{r functions}
+disc<-function(mydata,cols,sts){
+  ITR<-length(cols)
+  vec<-numeric(nrow(mydata))
+  for(i in 1:ITR){
+    vec<-cbind(vec,as.numeric(grepl(sts,mydata[[cols[i]]],ignore.case=TRUE)))
+  }
+  
+  vec<-vec[,-1]
+  colnames(vec)<-cols
+  comb<-apply(vec,1,sum)
+  comb<-as.numeric(comb>0)
+  out<-list(comb,vec)
+  return(out)
+}
+
+stitch <- function(dataset,g1,g2,res){
+  wdata<-cbind(dataset,res)
+  g1data<-cbind(wdata[is.element(wdata$eid,g1),],1)
+  colnames(g1data)[ncol(g1data)]<-"GR"
+  g2data<-cbind(wdata[is.element(wdata$eid,g2),],0)
+  colnames(g2data)[ncol(g2data)]<-"GR"
+  fdata<-rbind(g1data,g2data)
+  return(fdata)
+}
+```
+
+```{r read in files}
+ukbb_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
+ukbb_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
+pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+```
+
+```{r define cancers}
+#Which columns to look at for cancer
+allcodes<-c("p40001_i0","p40001_i1","p41270","p41271","p40006_i0","p40006_i1","p40006_i2","p40006_i3","p40006_i4","p40006_i5","p40006_i6","p40006_i7","p40006_i8","p40006_i9","p40006_i10","p40006_i11","p40006_i12","p40006_i13","p40006_i14","p40006_i15","p40006_i16","p40006_i17", "p40006_i18", "p40006_i19","p40006_i20","p40006_i21","p41271","p40013_i0","p40013_i1","p40013_i2","p40013_i3",
+"p40013_i4","p40013_i5","p40013_i6","p40013_i7","p40013_i8","p40013_i9","p40013_i10","p40013_i11","p40013_i12", "p40013_i13","p40013_i14")
+
+#Define cancers from ICD10 and ICD9 codes
+cancers<-"C[[:digit:]]|^1[456789]|'1[456789]|^20[0-8]|'20[0-8]|^209[[[:blank:]]0123]|'209['0123]"
+```
+
+```{r run functions}
+R1<-disc(pheno,allcodes,cancers)
+D1<-stitch(pheno,ukbb_cases[,1],ukbb_controls[,1],R1[[1]])
+```
+
+```{r sex & age}
+S1<-xtabs(~p31+GR,data=D1)
+Sex<-c(S1[2,1],
+S1[2,1]/sum(S1[,1]),
+S1[2,2],
+S1[2,2]/sum(S1[,2]),
+summary(S1)$p.value
+)
+
+S1
+summary(S1)$p.value
+
+
+A1 <- t.test (age~GR, data=D1)
+current_age<-c(as.numeric(A1$estimate)[1],
+       sd(D1$age[D1$GR==0],na.rm=TRUE),
+       as.numeric(A1$estimate)[2],
+       sd(D1$age[D1$GR==1],na.rm=TRUE),
+       A1$p.value)
+
+current_age
+```
+
+```{r bmi}
+#BMI
+B1<-t.test(bmis~GR,data=D1)
+
+BMI<-c(as.numeric(B1$estimate)[1],
+  sd(D1$bmis[D1$GR==0],na.rm=TRUE),
+  as.numeric(B1$estimate)[2],
+  sd(D1$bmis[D1$GR==1],na.rm=TRUE),
+  B1$p.value)
+
+BMI
+
+#cancer
+C1<-xtabs(~res+GR,data=D1)
+Cancer<-c(C1[2,1],
+C1[2,1]/sum(C1[,1]),
+C1[2,2],
+C1[2,2]/sum(C1[,2]),
+summary(C1)$p.value
+)
+
+Cancer
+```
+
+```{r death}
+TE<-D1$p34
+EV<-numeric(length(TE))
+EV[D1$p40007_i0>1|D1$p40007_i1>1]<-1
+
+DE1<-xtabs(~EV+GR,data=D1)
+Death<-c(DE1[2,1],
+DE1[2,1]/sum(DE1[,1]),
+DE1[2,2],
+DE1[2,2]/sum(DE1[,2]),
+summary(DE1)$p.value
+)
+
+Death
+```
+
+```{r smoking}
+Sm1<-xtabs(~smokestat+GR,data=D1)
+Smoking<-c(Sm1[2,1],
+Sm1[2,1]/sum(Sm1[,1]),
+Sm1[2,2],
+Sm1[2,2]/sum(Sm1[,2]),
+summary(S1)$p.value
+)
+
+Smoking
+```
+
+```{r drinking}
+# not run, not in original df 
+A1<-xtabs(~drinking+GR,data=D1)
+Drinking<-c(A1[2,1],
+A1[2,1]/sum(A1[,1]),
+A1[2,2],
+A1[2,2]/sum(A1[,2]),
+summary(A1)$p.value
+)
+```
+
+```{r ethnic}
+Ethnic_groups<-xtabs(~group+GR,data=D1)
+
+table(D1$group == "Nigeria" | D1$group == "Caribbean", D1$GR) # AFR
+fisher.test(table(D1$group == "Nigeria" | D1$group == "Caribbean", D1$GR))
+table(D1$group == "China", D1$GR) # EAS
+fisher.test(table(D1$group == "China", D1$GR))
+table(D1$group == "Poland" | D1$group == "United Kingdom" | D1$group == "Italy" , D1$GR) #EUR
+fisher.test(table(D1$group == "Poland" | D1$group == "United Kingdom" | D1$group == "Italy", D1$GR))
+table(D1$group == "India" | D1$group == "Iran" , D1$GR) #SAS
+fisher.test(table(D1$group == "India" | D1$group == "Iran", D1$GR))
+table(D1$group == "Ashkenazi" , D1$GR) #Jew
+fisher.test(table(D1$group == "Ashkenazi", D1$GR))
+table(D1$group == "Others" , D1$GR) #Jew
+fisher.test(table(D1$group == "Others", D1$GR))
+```
+```{r}
+A1
+```
+
