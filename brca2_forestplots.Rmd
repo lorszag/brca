@@ -19,6 +19,7 @@ map = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/benign_cod
 ghs_malig_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_malig.xlsx', sheet = 2)
 ghs_ben_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ghs_brca2_benign.xlsx', sheet = 2)
 ukbb_ben_expand <- read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca2_benign.xlsx', sheet = 2)
+ukbb_malig_expand = read_excel('/Users/orszagl2/Documents/Genetics/specific_cancers/ukbb_brca2_malignancies.xlsx', sheet = 2)
 ```
 
 ```{r write study columns}
@@ -27,26 +28,28 @@ ukbb_ben$study = "ukbb"
 ghs_malig$study = "ghs"
 ghs_ben$study = "ghs"
 ghs_malig_expand$study = "ghs"
+ukbb_malig_expand$study = "ukbb"
 ghs_ben_expand$study = "ghs"
 ukbb_ben_expand$study = "ukbb"
 ```
 
 ```{r as factors}
-ukbb_malig$Index <- factor(ukbb_malig$Index, levels=rev(ukbb_malig$Index))
-ghs_malig$Index <- factor(ghs_malig$Index, levels=rev(ghs_malig$Index))
-ukbb_ben$Index <- factor(ukbb_ben$Index, levels=rev(ukbb_ben$Index))
+ukbb_malig$Index <- factor(ukbb_malig$Index, levels=ukbb_malig$Index)
+ghs_malig$Index <- factor(ghs_malig$Index, levels=ghs_malig$Index)
+ukbb_ben$Index <- factor(ukbb_ben$Index, levels=ukbb_ben$Index)
 ukbb_ben$lowCI = as.numeric(ukbb_ben$lowCI)
 ukbb_ben$highCI = as.numeric(ukbb_ben$highCI)
 ukbb_ben$OR = as.numeric(ukbb_ben$OR)
-ghs_ben$Index <- factor(ghs_ben$Index, levels=rev(ghs_ben$Index))
+ghs_ben$Index <- factor(ghs_ben$Index, levels=ghs_ben$Index)
 ghs_ben$lowCI = as.numeric(ghs_ben$lowCI)
 ghs_ben$highCI = as.numeric(ghs_ben$highCI)
 ghs_ben$OR = as.numeric(ghs_ben$OR)
 ```
 
+
 ```{r join malignant dataframes}
-ukbb_malig$abbrev = c("All", 'Oral', "Digestive Organs", "Respiratory", "Bone", "Skin", "Soft Tissue", "Breast", "Female Genital", "Male Genital", "Urinary Tract", "CNS", "Endocrine", "Unspecified", "Lymphoid")
-ghs_malig$abbrev = c("All",'Oral', "Digestive Organs", "Respiratory", "Bone", "Skin", "Soft Tissue", "Breast", "Female Genital", "Male Genital", "Urinary Tract", "CNS", "Endocrine", "Unspecified", "Lymphoid")
+ukbb_malig$icd10 = c("All", 'Oral', "Digestive Organs", "Respiratory", "Bone", "Skin", "Soft Tissue", "Breast", "Female Genital", "Male Genital", "Urinary Tract", "CNS", "Endocrine", "Unspecified", "Lymphoid")
+ghs_malig$icd10 = c("All",'Oral', "Digestive Organs", "Respiratory", "Bone", "Skin", "Soft Tissue", "Breast", "Female Genital", "Male Genital", "Urinary Tract", "CNS", "Endocrine", "Unspecified", "Lymphoid")
 malig = rbind(ukbb_malig, ghs_malig)
 malig = malig[-c(5, 17, 20), ]
 ```
@@ -70,16 +73,22 @@ benign_expand = benign_expand%>%
 ```
 
 ```{r confidence intervals}
-malig$OR_CI = paste0(round(malig$OR, 2), "[", round(malig$lowCI, 2), "-", round(malig$highCI, 2), "]")
-ghs_malig_expand$OR_CI = paste0(round(ghs_malig_expand$OR, 2), "[", round(ghs_malig_expand$lowCI, 2), "-", round(ghs_malig_expand$highCI, 2), "]")
+malig_expand = rbind(ukbb_malig_expand, ghs_malig_expand)
+malig_expand$lowCI = as.numeric(malig_expand$lowCI)
+malig_expand$highCI = as.numeric(malig_expand$highCI)
+malig_expand = malig_expand%>%
+  filter(ncases != 0)%>%
+  mutate(OR_CI = paste0(round(OR, 2), "[", round(lowCI, 2), "-", round(highCI, 2), "]"))%>%
+  left_join(map, by = "Index")
 ```
 
 ```{r}
-forest_plot(malig, "BRCA 2 Malignancies", abbrev)
+forest_plot(malig, "BRCA 2 Malignancies", paste0(Index, ": ", icd10))
+table_plot(malig, "BRCA 1 Malignancies")
 ```
 
 ```{r brca1 benign}
-forest_plot(benign, "BRCA 2 Benign", .)
+forest_plot(benign, "BRCA 2 Benign", paste0(Index, ": ", .))
 ```
 
 ```{r}
@@ -89,9 +98,9 @@ benign%>%filter(p_value<.05 | pv <.05)
 ```
 
 ```{r brca1 malignant expanded}
-forest_plot(ghs_malig_expand, "BRCA 2 Malignant Expanded", icd10_group_desc)
+forest_plot(malig_expand, "BRCA 2 Malignant Expanded", paste0(Index, ": ", icd10))
 ```
 
 ```{r brca1 malignant expanded}
-forest_plot(benign_expand, "BRCA 2 Benign Expanded", .)
+forest_plot(benign_expand, "BRCA 2 Benign Expanded", paste0(Index, ": ", .))
 ```
