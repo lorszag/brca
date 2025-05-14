@@ -1,7 +1,7 @@
 ---
-title: "Demographic Table"
-output: pdf_document
-date: "`r Sys.Date()`"
+title: "demographics_brca2"
+output: html_document
+date: "2025-05-14"
 ---
 
 ```{r libraries}
@@ -46,8 +46,8 @@ stitch <- function(dataset,g1,g2,res){
 ```
 
 ```{r read in files}
-ukbb_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
-ukbb_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
+ukbb_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_control.txt', header=TRUE)
+ukbb_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_cases.txt', header=TRUE)
 pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
 ```
 
@@ -76,6 +76,7 @@ summary(S1)$p.value
 
 S1
 summary(S1)$p.value
+prop.table(S1, margin = 2)
 
 
 A1 <- t.test (age~GR, data=D1)
@@ -85,6 +86,7 @@ current_age<-c(as.numeric(A1$estimate)[1],
        sd(D1$age[D1$GR==1],na.rm=TRUE),
        A1$p.value)
 
+A1
 current_age
 ```
 
@@ -155,16 +157,22 @@ summary(A1)$p.value
 Ethnic_groups<-xtabs(~group+GR,data=D1)
 
 table(D1$group == "Nigeria" | D1$group == "Caribbean", D1$GR) # AFR
+prop.table(table(D1$group == "Nigeria" | D1$group == "Caribbean", D1$GR), margin = 2)
 fisher.test(table(D1$group == "Nigeria" | D1$group == "Caribbean", D1$GR))
 table(D1$group == "China", D1$GR) # EAS
+prop.table(table(D1$group == "China", D1$GR), margin = 2)
 fisher.test(table(D1$group == "China", D1$GR))
 table(D1$group == "Poland" | D1$group == "United Kingdom" | D1$group == "Italy" , D1$GR) #EUR
+prop.table(table(D1$group == "Poland" | D1$group == "United Kingdom" | D1$group == "Italy" , D1$GR), margin = 2)
 fisher.test(table(D1$group == "Poland" | D1$group == "United Kingdom" | D1$group == "Italy", D1$GR))
 table(D1$group == "India" | D1$group == "Iran" , D1$GR) #SAS
+prop.table(table(D1$group == "India" | D1$group == "Iran" , D1$GR), margin = 2)
 fisher.test(table(D1$group == "India" | D1$group == "Iran", D1$GR))
 table(D1$group == "Ashkenazi" , D1$GR) #Jew
+prop.table(table(D1$group == "Ashkenazi" , D1$GR), margin = 2)
 fisher.test(table(D1$group == "Ashkenazi", D1$GR))
 table(D1$group == "Others" , D1$GR) #Jew
+prop.table(table(D1$group == "Others" , D1$GR), margin = 2)
 fisher.test(table(D1$group == "Others", D1$GR))
 ```
 ```{r}
