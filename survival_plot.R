@@ -110,3 +110,34 @@ run_stitch = function(cancers, cases, pheno){
   return(D1)
 }
 
+run_stitch_cens = function(cancers, cases, pheno){
+  R1<-disc(pheno,regcodes,cancers)
+  D1<-stitch(pheno,cases[,1],controls[,1],R1[[1]])
+  # pull stop year if applicable
+  deathyear<-as.numeric(substr(D1$p191,1,4))
+  surgyear = as.numeric(substr(D1$date_op1,1,4))
+  STOPYEAR = pmin(deathyear, surgyear, na.rm = TRUE) # choose whichever one comes first, death or surgery (if applicable)
+  STOPYEAR[!STOPYEAR>0|is.na(STOPYEAR)]<-CONSTANTYEAR #fill w const year when not applicable
+  AGEATSTART<-STARTYEAR-D1$p34 # start age
+  D1<-cbind(D1,STOPYEAR)
+  TE<-D1$STOPYEAR-D1$p34 # time observed
+  Rset<-numeric(nrow(D1)) # for H dataframe
+  # dummy var
+  for(i in 1:length(regcodes)){
+    Ritem<-disc(D1,c(regcodes[i],"p52"),cancers)[[1]]
+    Rset<-cbind(Rset,Ritem)
+  }
+  
+  Rset<-Rset[,-1]
+  D1 = as.data.frame(D1)
+  H1<-D1[,c((which(colnames(D1)=="p40008_i0")):(which(colnames(D1)=="p40008_i0")+21))]
+  
+  # for ICD9+10
+  for(i in 1:15){
+    H1[,i][Rset[,i]==0&Rset[,22+i]==0]<-1000
+  }
+  TE2<-apply(H1,1,min,na.rm=TRUE)
+  TE[D1$res==1]<-TE2[D1$res==1]
+  D1<-cbind(D1,TE,AGEATSTART)
+  return(D1)
+}

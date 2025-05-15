@@ -181,7 +181,7 @@ A1
 
 ```{r}
 library(readxl)
-demo_table = read_excel('/Users/orszagl2/Documents/Genetics/demographs_brca1.xlsx')
+demo_table = read_excel('/Users/orszagl2/Documents/Genetics/demographs_brca2.xlsx')
 demo_table = demo_table[c(1:4, 7:15), 1:7]
 ```
 
