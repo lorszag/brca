@@ -17,6 +17,11 @@ brca1_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-Nati
 brca1_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
 ```
 
+```{r}
+table(as.factor(operations$oper3))
+```
+
+
 ```{r mutate operations}
 operations <- operations %>%
   mutate(

@@ -125,10 +125,11 @@ survival_plot(survres2_nofam, D2, "All Cause Mortality", NULL, 40, 1)
 
 # Time to Breast/Ovarian Cancer
 ```{r}
-operations2 = operations%>%filter(surgery_category == "Total Hysterectomy" | surgery_category == "Bilateral salpingo_oopherectomy" | surgery_category == "Bilateral oopherectomy")
-operations2 = operations2%>%
+operations2 = operations%>%filter(surgery_category == "Total hysterectomy" | surgery_category == "Bilateral salpingo_oopherectomy" | surgery_category == "Bilateral oopherectomy")
+operations2$opdate = as.Date(operations2$opdate)
+operations2 <- operations2 %>%
+  filter(!is.na(opdate)) %>%
   group_by(eid)%>%
-  filter(opdate != " " & opdate != "")%>%
   summarize(date_op1 = min(opdate))
 ```
 
