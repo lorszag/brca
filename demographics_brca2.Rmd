@@ -136,7 +136,7 @@ Smoking<-c(Sm1[2,1],
 Sm1[2,1]/sum(Sm1[,1]),
 Sm1[2,2],
 Sm1[2,2]/sum(Sm1[,2]),
-summary(S1)$p.value
+summary(Sm1)$p.value
 )
 
 Smoking
@@ -183,6 +183,8 @@ A1
 library(readxl)
 demo_table = read_excel('/Users/orszagl2/Documents/Genetics/demographs_brca2.xlsx')
 demo_table = demo_table[c(1:4, 7:15), 1:7]
+demo_table$`p (UKBB)` = ifelse(demo_table$`p (UKBB)`<0.01, formatC(demo_table$`p (UKBB)`, format = "e", digits = 3), demo_table$`p (UKBB)`)
+demo_table$`p (GHS)` = ifelse(demo_table$`p (GHS)`<0.01, formatC(demo_table$`p (GHS)`, format = "e", digits = 3), demo_table$`p (GHS)`)
 ```
 
 ```{r}
@@ -192,4 +194,7 @@ demo_table%>%
   pack_rows("Race/Ethnicity", 5, 11) %>%
   kable_styling(latex_options = 'striped')
 ```
+
+
+
 

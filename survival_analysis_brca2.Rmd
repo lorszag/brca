@@ -19,9 +19,10 @@ library(data.table)
 ```
 
 ```{read in files}
-controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_control.txt', header=TRUE)
-brca2 <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_cases.txt', header=TRUE)
-pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/ukbb_brca2_control.txt', header=TRUE)
+brca2 <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/ukbb_brca2_cases.txt', header=TRUE)
+pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+operations <-read.csv('/Users/orszagl2/Documents/Genetics/operations/operations.csv')
 ```
 
 ```{r}
@@ -31,7 +32,6 @@ pheno = pheno%>%mutate(across(c(p20110_i0, p20110_i1, p20110_i2, p20110_i3, p201
          fam_hx = ifelse(mom_bc == 1 | sis_bc == 1, 1, 0))
 pheno$fam_hx = as.factor(pheno$fam_hx)
 ```
-
 
 # Time to Cancer
 ```{r definitions of years & cancers}
@@ -66,17 +66,17 @@ D1 = D1%>%
 
 ```{r cox ph cancer}
 survres1<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D1)
-survres1_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D1)
+survres1_nofam <-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D1)
 
-coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D1)
+coxph(Surv(AGEATSTART,TE, res) ~ gr_combo + fam_hx, data=D1)
 
-fit1 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis + p31 + p34+ smokestat, data=D1)
+fit1 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p31 + p34+ smokestat, data=D1)
 summary (fit1)
 exp(confint(fit1))
 ```
 
 ```{r cox plot cancer}
-survival_plot_fam(survres1, D1, "Time To All Cancer", "event", 20, .8)
+survival_plot_fam(survres1, D1, "Time To All Cancer", "event", 20, .6)
 survival_plot(survres1_nofam, D1, "Time To All Cancer", "event", 20, .8)
 ```
 
@@ -110,10 +110,10 @@ D2 = D2%>%
 
 ```{r cox ph death}
 survres2<-survfit(Surv(TE, EV) ~ gr_combo, data=D2)
-survres2_nofam<-survfit(Surv(TE, EV) ~ GR, data=D2)
+survres2_nofam <-survfit(Surv(TE, EV) ~ GR, data=D2)
 coxph(Surv(TE, EV) ~ gr_combo, data=D2)
 
-fit2 <- coxph(Surv(TE, EV) ~ GR+ bmis+ p31 + p34+ smokestat+group, data=D2)
+fit2 <- coxph(Surv(TE, EV) ~ GR + bmis+ p31 + p34+ smokestat+group, data=D2)
 summary (fit2)
 exp(confint(fit2))
 ```
@@ -124,14 +124,28 @@ survival_plot(survres2_nofam, D2, "All Cause Mortality", NULL, 40, 1)
 ```
 
 # Time to Breast/Ovarian Cancer
+```{r}
+operations2 = operations%>%filter(surgery_category == "Total hysterectomy" | surgery_category == "Bilateral salpingo_oopherectomy" | surgery_category == "Bilateral oopherectomy" | surgery_category == "Total mastectomy")
+operations2$opdate = as.Date(operations2$opdate, format = '%m/%d/%y')
+operations2 <- operations2 %>%
+  filter(!is.na(opdate)) %>%
+  group_by(eid)%>%
+  summarize(date_op1 = min(opdate, na.rm = TRUE))
+```
+
 ```{r define breast/ovarian cancers}
 pheno2 <- pheno %>% filter (p31=="Female")
+pheno_female <- pheno %>% filter (p31=="Female")
+pheno2 = operations2%>%
+  dplyr::select(eid, date_op1)%>%
+  right_join(pheno2, by = 'eid')
 b_o_cancers<-"C50|^C50|^17[45]|'17[45]|C56|^C56|^1830|'1830"
 STARTYEAR<-1970
 ```
 
 ```{r}
-D3 = run_stitch(b_o_cancers, brca2, pheno2)
+D3 = run_stitch(b_o_cancers, brca2, pheno_female)
+D3_cens = run_stitch_cens(b_o_cancers, brca2, pheno2)
 ```
 
 ```{r}
@@ -146,16 +160,20 @@ D3 = D3%>%
 
 ```{r run models breast/ovarian}
 survres3<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D3)
-survres3_nofam = survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D3)
-coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D3)
-fit3 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+smokestat, data=D3)
+survres3_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D3)
+survres3_cens<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D3_cens)
+fit3 <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p34 + smokestat, data=D3)
+fit3_cens <- coxph(Surv(AGEATSTART,TE, res) ~ GR + bmis+ p34 + smokestat, data=D3_cens)
 summary (fit3)
-exp(confint(fit3))
+summary (fit3_cens)
 ```
 
+
+
 ```{r cox plot breast & ovarian}
-survival_plot_fam(survres3, D3, "Time to Breast/Ovarian Cancer", "event", 20, .6)
-survival_plot(survres3_nofam, D3, "Time to Breast/Ovarian Cancer", "event", 20, .6)
+survival_plot_fam(survres3, D3, "Time to Breast/Ovarian Cancer", "event", 20, .8)
+survival_plot(survres3_nofam, D3, "Time to Breast/Ovarian Cancer", "event", 20, .8)
+survival_plot(survres3_cens, D3_cens, "Time to Breast/Ovarian Cancer with Censoring", "event", 20, .8)
 ```
 
 # Time to Breast Cancer
@@ -165,7 +183,21 @@ STARTYEAR<-1970
 ```
 
 ```{r}
-D4 = run_stitch(b_cancers, brca2, pheno2)
+operations4= operations%>%filter(surgery_category == "Total mastectomy")
+operations4$opdate = as.Date(operations4$opdate, format = '%m/%d/%y')
+operations4 = operations4%>%
+  filter(!is.na(opdate)) %>%
+  group_by(eid)%>%
+  summarize(date_op1 = min(opdate, na.rm = TRUE))
+pheno4 <- pheno %>% filter (p31=="Female")
+pheno4 = operations4%>%
+  dplyr::select(eid, date_op1)%>%
+  right_join(pheno4, by = 'eid')
+```
+
+```{r}
+D4 = run_stitch(b_cancers, brca2, pheno_female)
+D4_cens = run_stitch_cens(b_cancers, brca2, pheno4)
 ```
 
 ```{r}
@@ -181,15 +213,15 @@ D4 = D4%>%
 ```{r run models breast}
 survres4<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D4)
 survres4_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D4)
-coxph(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D4)
-
+survres4_cens<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D4_cens)
 fit4 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D4)
+fit4_cens <-coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D4_cens)
 summary (fit4)
-exp(confint(fit4))
+summary (fit4_cens)
 ```
 
 ```{r cox plot breast}
-survival_plot_fam(survres4, D4, "Time to Breast Cancer", "event", 20, .6)
+survival_plot_fam(survres4, D4, "Time to Breast Cancer", "event", 20, .8)
 survival_plot(survres4_nofam, D4, "Time to Breast Cancer", "event", 20, .6)
 ```
 
@@ -199,8 +231,23 @@ o_cancers<-"C56|^C56|^1830|'1830"
 STARTYEAR<-1970
 ```
 
+```{r}
+operations5= operations%>%filter(surgery_category == "Total Hysterectomy" | surgery_category == "Bilateral salpingo_oopherectomy" | surgery_category == "Bilateral oopherectomy")
+
+operations5$opdate = as.Date(operations5$opdate, format = '%m/%d/%y')
+operations5 = operations5%>%
+  filter(!is.na(opdate)) %>%
+  group_by(eid)%>%
+  summarize(date_op1 = min(opdate, na.rm = TRUE))
+pheno5 <- pheno %>% filter (p31=="Female")
+pheno5 = operations5%>%
+  dplyr::select(eid, date_op1)%>%
+  right_join(pheno5, by = 'eid')
+```
+
 ```{r run functions for ovarian cancer}
-D5 = run_stitch(o_cancers, brca2, pheno2)
+D5 = run_stitch(o_cancers, brca2, pheno_female)
+D5_cens = run_stitch_cens(o_cancers, brca2, pheno5)
 ```
 
 ```{r}
@@ -216,13 +263,15 @@ D5 = D5%>%
 ```{r run models ovarian}
 survres5<-survfit(Surv(AGEATSTART,TE, res) ~ gr_combo, data=D5)
 survres5_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D5)
-coxph(Surv(AGEATSTART,TE, res) ~ GR, data=D5)
-fit5 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+p34+ smokestat, data=D5) # remove gender since only women
+survres5_cens<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D5_cens)
+fit5 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D5) # remove gender since only women
+fit5_cens <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D5_cens) # remove gender since only women
 summary (fit5)
-exp(confint(fit5))
+summary (fit5_cens)
 ```
 
 ```{r cox plot ovarian}
-survival_plot_fam(survres5, D5, "Time to Ovarian Cancer", "event", 40, .4)
-survival_plot(survres5_nofam, D5, "Time to Ovarian Cancer", "event", 40, .4)
+survival_plot_fam(survres5, D5, "Time to Ovarian Cancer", "event", 40, .6)
+survival_plot(survres5_nofam, D5, "Time to Ovarian Cancer", "event", 40, .3)
+survival_plot(survres5_cens, D5_cens, "Time to Ovarian Cancer", "event", 40, .3)
 ```

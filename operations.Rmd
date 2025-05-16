@@ -12,13 +12,13 @@ suppressPackageStartupMessages({
 ```
 
 ```{r read in data}
-operations = read.delim('/Users/orszagl2/Documents/Genetics/operations/BRCA_operation.txt')
+operations = read.delim('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/BRCA_operation_051525.txt')
 brca1_controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_control.txt', header=TRUE)
 brca1_cases <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca1_case.txt', header=TRUE)
 ```
 
 ```{r}
-table(as.factor(operations$oper3))
+table(as.factor(operations$oper4))
 ```
 
 
@@ -38,6 +38,13 @@ operations <- operations %>%
       str_detect(oper3, "694 Sub-total hysterectomy") ~ "Partial hysterectomy",
       str_detect(oper3, "696 Hysterectomy, not elsewhere classified") ~ "Hysterectomy (other/NEC)",
       str_detect(oper3, "696.1 Hysterectomy, not elsewhere classified : total hysterectomy") ~ "Total hysterectomy",
+      str_detect(oper3, "381 Partial mastectomy") ~ "Partial mastectomy",
+      str_detect(oper3, "381.1 Partial mastectomy : excision of lesion") ~ "Partial mastectomy",
+      str_detect(oper3, "382 Mastectomy, not elsewhere classified") ~ "Mastectomy (Type Unknown)",
+      str_detect(oper3, "382.1 Mastectomy, not elsewhere classified : simple mastectomy") ~ "Total mastectomy",
+      str_detect(oper3, "383 Extended simple mastectomy") ~ "Total mastectomy",
+      str_detect(oper3, "384 Radical mastectomy") ~ "Total mastectomy",
+      str_detect(oper3, "386.3 Plastic operation on breast, not elsewhere classified : reconstruction after mastectomy, prosthesis") ~ "Breast Reconstruction",
       TRUE ~ NA_character_
     ),
     oper4_cat = case_when(
@@ -58,11 +65,19 @@ operations <- operations %>%
       str_detect(oper4, "Q24.1 Salpingoophorectomy NEC") ~ "Salpingo_oopherectomy NEC",
       str_detect(oper4, "Q24.3 Oophorectomy NEC") ~ "Oopherectomy NEC",
       str_detect(oper4, "R25.1 Caesarean hysterectomy") ~ "Hysterectomy (other/NEC)",
+      str_detect(oper4, "B27.1 Total mastectomy and excision of both pectoral muscles and part of chest wall") ~ "Total mastectomy",
+      str_detect(oper4, "B27.2 Total mastectomy and excision of both pectoral muscles NEC") ~ "Total mastectomy",
+      str_detect(oper4, "B27.3 Total mastectomy and excision of pectoralis minor muscle") ~ "Total mastectomy",
+      str_detect(oper4, "B27.4 Total mastectomy NEC") ~ "Total mastectomy",
+      str_detect(oper4, "B27.4 Total mastectomy NEC") ~ "Total mastectomy",
+      str_detect(oper4, "B27.5 Subcutaneous mastectomy") ~ "Partial mastectomy",
+      str_detect(oper4, "B27.6 Skin sparing mastectomy") ~ "Partial mastectomy",
       TRUE ~ NA_character_
     ),
     surgery_category = coalesce(oper3_cat, oper4_cat)  # Combine the results into a single column
   )
 ```
+
 
 ```{r brca1 status}
 operations = operations%>%mutate(brca1 = case_when(eid %in% brca1_cases$eid ~ "case",
@@ -80,6 +95,7 @@ fisher.test(partial_hist)
 total_hist = data.frame(case = c(49, 548-49), control = c(13481, 469006-13481))
 fisher.test(total_hist)
 ```
+
 ```{r}
 write.csv(operations, "operations.csv")
 ```
