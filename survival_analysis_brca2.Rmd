@@ -19,9 +19,9 @@ library(data.table)
 ```
 
 ```{read in files}
-controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/ukbb_brca2_control.txt', header=TRUE)
-brca2 <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/ukbb_brca2_cases.txt', header=TRUE)
-pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/brca2_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
+controls <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_control.txt', header=TRUE)
+brca2 <- read.table('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/ukbb_brca2_cases.txt', header=TRUE)
+pheno <- fread("/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Genetics/BRCA1_BRCA2/UKBiobank_phenotype_update_112024_final_truncated_familyhistory.txt", sep='\t', fill = TRUE)
 operations <-read.csv('/Users/orszagl2/Documents/Genetics/operations/operations.csv')
 ```
 

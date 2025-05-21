@@ -77,7 +77,7 @@ exp(confint(fit1))
 
 ```{r cox plot cancer}
 survival_plot_fam(survres1, D1, "Time To All Cancer", "event", 20, .6)
-survival_plot(survres1_nofam, D1, "Time To All Cancer", "event", 20, .6)
+survival_plot(survres1_nofam, D1, "Time To All Cancer", "event", 20, .8)
 ```
 
 # All Cause Mortality
