@@ -275,3 +275,27 @@ survival_plot_fam(survres5, D5, "Time to Ovarian Cancer", "event", 40, .6)
 survival_plot(survres5_nofam, D5, "Time to Ovarian Cancer", "event", 40, .3)
 survival_plot(survres5_cens, D5_cens, "Time to Ovarian Cancer", "event", 40, .3)
 ```
+
+# Time to Prostate4 Cancer
+```{r define ovarian cancers}
+p_cancers<-"C61|^C61|^1850|'1850"
+STARTYEAR<-1970
+```
+
+```{r}
+pheno6 <- pheno %>% filter (p31=="Male")
+```
+
+```{r run functions for prostate cancer}
+D6 = run_stitch(p_cancers, brca2, pheno6)
+```
+
+```{r run models prostate}
+survres6_nofam<-survfit(Surv(AGEATSTART,TE, res) ~ GR, data=D6)
+fit6 <- coxph(Surv(AGEATSTART,TE, res) ~ GR+ bmis+ p34+ smokestat, data=D6) # remove gender since only men
+summary (fit6)
+```
+
+```{r cox plot prostate}
+survival_plot(survres6_nofam, D6, "Time to Prostate Cancer", "event", 40, .5)
+```
